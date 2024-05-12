@@ -14,8 +14,8 @@ public class Packet {
      */
 
     private HashMap<String, String> packetInfo;
-    private String rawPacketContent;
     private String packetType;
+
     public Packet(String bytes) {
 
         // parse the headers
@@ -27,36 +27,25 @@ public class Packet {
             String[] kv = rawHeader.split("=");
             this.packetInfo.put(kv[0].trim(), kv[1].trim());
         }
-        this.rawPacketContent = bytes.substring(parts[0].length() + parts[1].length() + 2);
-
     }
 
-    public Packet(String type, Map<String, String> info, String content) {
+    public Packet(String type, Map<String, String> info) {
         this.packetType = type;
         this.packetInfo = new HashMap<String, String>(info);
-        this.rawPacketContent = content;
     }
 
     public String toString() {
-        String headers = "";
+        String data = "";
         for (Map.Entry<String, String> entry : this.packetInfo.entrySet()) {
-            headers += entry.getKey() + "=" + entry.getValue() + ",";
+            data += entry.getKey() + "=" + entry.getValue() + ",";
         }
-        headers = headers.substring(0, headers.length() - 1);
+        data = data.substring(0, data.length() - 1);
 
-        String content = this.rawPacketContent;
-        if (content.equals("")) {
-            content = "<empty>";
-        }
-        return this.packetType + "&" + headers + "&" + content;
+        return this.packetType + "&" + data;
     }
 
     public String getInfo(String key) {
         return this.packetInfo.get(key);
-    }
-
-    public String getContent() {
-        return this.rawPacketContent;
     }
 
     public String getType() {

@@ -10,14 +10,17 @@ import conn.Security;
 class ClientHandler implements Runnable {
 
     private final Socket clientSocket;
-    private PrintWriter out;
     private int clientID;
-    private String displayName;
+    
+    public String displayName;
+    public PrintWriter out;
+    public long ping;
 
     public ClientHandler(Socket clientSocket) {
 
         // Establish a connection
         this.clientSocket = clientSocket;
+        this.ping = -1;
         try {
             this.out = new PrintWriter(clientSocket.getOutputStream(), true);
         } catch (IOException e) {
@@ -52,8 +55,10 @@ class ClientHandler implements Runnable {
 
                 if (packet.getType().equals("LOGON")) {
                     this.displayName = packet.getInfo("username");
-                } else {
-                    System.err.println("Unknown packet type: " + packet.getType());
+                } else if (packet.getType().equals("CHECKUP")) {
+                    String startTime = packet.getInfo("sent");
+                    // Get the time difference
+                    this.ping = System.currentTimeMillis() - Long.parseLong(startTime);
                 }
             }
 

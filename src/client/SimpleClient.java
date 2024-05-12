@@ -21,7 +21,7 @@ public class SimpleClient {
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
             System.out.println("Connected to server on " + serverAddress + ":" + port);
-            Packet logonPacket = new Packet("LOGON", Map.of("enc", "false", "username", "HW"), "");
+            Packet logonPacket = new Packet("LOGON", Map.of("enc", "false", "username", "HW"));
             out.println(logonPacket.toString());
 
             // Read messages from the server and print them
@@ -42,6 +42,6 @@ public class SimpleClient {
     private static Packet handleCheckupPacket(Packet packet) {
         // Send back a checkup packet, with the same headers, but content is the hash of the content
         String hash = packet.toString().hashCode() + "";
-        return new Packet("CHECKUP", Map.of("enc", "false", "sent", packet.getInfo("sent")), hash);
+        return new Packet("CHECKUP", Map.of("enc", "false", "sent", packet.getInfo("sent"), "content", hash));
     }
 }

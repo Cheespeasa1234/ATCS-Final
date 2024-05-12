@@ -13,8 +13,10 @@ public class Lobby implements Runnable {
         while (true) {
             // Broadcast message to all connected clients
             String now = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
-            Packet packet = new Packet("CHECKUP", Map.of("enc", "false", "sent", now), "");
-            Server.broadcastMessage(packet.toString());
+            for (ClientHandler client: Server.clients) {
+                Packet packet = new Packet("CHECKUP", Map.of("enc", "false", "sent", now, "ping", client.ping + ""));
+                client.out.println(packet.toString());
+            }
 
             try {
                 int timeToPause = (int) (Math.random() * 3000.0 + 2000.0); // Sleep for 2-5 seconds
