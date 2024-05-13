@@ -3,6 +3,13 @@ package server;
 import java.io.*;
 import java.net.*;
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.time.ZonedDateTime;
+import java.util.Map;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 import conn.Packet;
 import conn.Security;
@@ -15,6 +22,10 @@ class ClientHandler implements Runnable {
     public String displayName;
     public PrintWriter out;
     public long ping;
+
+    public PublicKey clientPublicKey; // The key used to send messages to the client, and to verify the signature
+    public PublicKey serverPublicKey; // The key to send to the client, for them to encrypt messages to the server
+    public PrivateKey serverPrivateKey; // The key to decrypt messages from the client, and to sign messages to the client
 
     public ClientHandler(Socket clientSocket) {
 
@@ -50,29 +61,52 @@ class ClientHandler implements Runnable {
             String inputLine;
 
             while ((inputLine = in.readLine()) != null) {
-                Packet packet = new Packet(inputLine);
-                System.out.println("@" + this.clientID + " says: " + packet.toString());
 
-                if (packet.getType().equals("LOGON")) {
-                    this.displayName = packet.getInfo("username");
-                } else if (packet.getType().equals("CHECKUP")) {
-                    String startTime = packet.getInfo("sent");
-                    // Get the time difference
-                    this.ping = System.currentTimeMillis() - Long.parseLong(startTime);
+                Packet incomingPacket;
+
+                // If it is the logon packet, it doesn't need to be decrypted
+                if (inputLine.startsWith("LOGON&")) {
+                    incomingPacket = new Packet(inputLine);
+                    this.clientPublicKey = Security.stringToPublicKey(incomingPacket.getInfo("pubkey"));
+
+                    // Generate server key pair
+                    KeyPair keyPair = Security.generateKeyPair();
+                    this.serverPublicKey = keyPair.getPublic();
+                    this.serverPrivateKey = keyPair.getPrivate();
+
+                    // Send the server public key to the client
+                    Packet packet = new Packet("LOGON", Map.of("pubkey", Security.publicKeyToString(this.serverPublicKey)));
+                    String packetString = packet.toString();
+
+                    // Encrypt the packet
+                    byte[] encryptedPacket = Security.encryptMessage(packetString, this.clientPublicKey);
+                    byte[] signedPacket = Security.signMessage(new String(encryptedPacket), this.serverPrivateKey);
+
+                    // Send the encrypted packet to the client
+                    out.println(new String(signedPacket));
+                    
                 }
+
+                // System.out.println("@" + this.clientID + " says: " + packet.toString());
+
+                // if (packet.getType().equals("LOGON")) {
+                //     this.displayName = packet.getInfo("username");
+                // } else if (packet.getType().equals("CHECKUP")) {
+                //     String startTime = packet.getInfo("sent");
+                //     // Convert ISO to epoch
+                //     ZonedDateTime zdt = ZonedDateTime.parse(startTime);
+                //     long epoch = zdt.toInstant().toEpochMilli();
+                //     // Get the time difference
+                //     this.ping = System.currentTimeMillis() - epoch;
+                // }
             }
 
-            System.out.println("Client disconnected: " + clientSocket.getInetAddress().getHostAddress());
-            Server.clients.remove(this); // Remove this client from the list
-            clientSocket.close();
-        } catch (IOException e) {
-            String message = e.getMessage();
-            if (message.equals("Connection reset")) {
-                System.out.println("@" + this.clientID + "disconnected: " + clientSocket.getInetAddress().getHostAddress());
-                Server.clients.remove(this); // Remove this client from the list
-            } else {
-                System.err.println("Error handling client: " + e.getMessage());
-            }
+            System.out.println("@" + this.clientID + " disconnected: " + clientSocket.getInetAddress().getHostAddress());
+            closeConnection();
+        } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeySpecException | SignatureException e) {
+            e.printStackTrace();
+            System.out.println("@" + this.clientID + " disconnected: " + clientSocket.getInetAddress().getHostAddress());
+            closeConnection();
         }
     }
 

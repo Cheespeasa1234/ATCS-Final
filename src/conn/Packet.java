@@ -1,7 +1,6 @@
 package conn;
 
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,6 +26,7 @@ public class Packet {
             String[] kv = rawHeader.split("=");
             this.packetInfo.put(kv[0].trim(), kv[1].trim());
         }
+
     }
 
     public Packet(String type, Map<String, String> info) {
