@@ -8,12 +8,12 @@ public class Packet {
 
     /**
      * Client Packet types:
-     * LOGON: Headers have username and enc status. Content is discarded.
-     * CHAT: Headers have enc status. Content is the message. Message is to be displayed in the chat room.
+     * 
      */
 
     private HashMap<String, String> packetInfo;
     private String packetType;
+    private String timeRecieved;
 
     public Packet(String bytes) {
 
@@ -26,6 +26,8 @@ public class Packet {
             String[] kv = rawHeader.split("=");
             this.packetInfo.put(kv[0].trim(), kv[1].trim());
         }
+
+        
 
     }
 

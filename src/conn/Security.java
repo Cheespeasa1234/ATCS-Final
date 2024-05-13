@@ -23,6 +23,11 @@ import javax.crypto.NoSuchPaddingException;
 
 public class Security {
 
+    /**
+     * Turn the base64 form of a RSA public key into a PublicKey object.
+     * @param publicKeyStr The public key in string form.
+     * @return The PublicKey object.
+     */
     public static PublicKey stringToPublicKey(String publicKeyStr) throws NoSuchAlgorithmException, InvalidKeySpecException {
         byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyStr);
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
@@ -30,6 +35,11 @@ public class Security {
         return keyFactory.generatePublic(keySpec);
     }
 
+    /**
+     * Turn the base64 form of a RSA private key into a PrivateKey object.
+     * @param privateKeyStr The private key in string form.
+     * @return The PrivateKey object.
+     */
     public static PrivateKey stringToPrivateKey(String privateKeyStr) throws NoSuchAlgorithmException, InvalidKeySpecException {
         byte[] privateKeyBytes = Base64.getDecoder().decode(privateKeyStr);
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
@@ -37,35 +47,71 @@ public class Security {
         return keyFactory.generatePrivate(keySpec);
     }
 
+    /**
+     * Turn the PublicKey object into a base64 form string.
+     * @param publicKey the PublicKey object
+     * @returns The string form.
+     */
     public static String publicKeyToString(PublicKey publicKey) {
         return Base64.getEncoder().encodeToString(publicKey.getEncoded());
     }
 
+    /**
+     * Turn the PrivateKey object into a base64 form string.
+     * @param privateKey the PublicKey object
+     * @returns The string form.
+     */
     public static String privateKeyToString(PrivateKey privateKey) {
         return Base64.getEncoder().encodeToString(privateKey.getEncoded());
     }
 
-    public static byte[] encryptMessage(String message, PublicKey publicKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    /**
+     * Encrypt a message with a public key, and return the ciphertext. 
+     * The string can not be longer than 245 bytes.
+     * @see #encryptAndConcatenate(String, PublicKey)
+     * @param message The message to encrypt.
+     * @param publicKey The public key to encrypt with.
+     * @return The encrypted message in byte form.
+     */
+    public static String encryptMessage(String message, PublicKey publicKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, publicKey);
-        return cipher.doFinal(message.getBytes());
+        return new String(cipher.doFinal(message.getBytes()));
     }
 
-    public static byte[] decryptMessage(byte[] encryptedMessage, PrivateKey privateKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    /**
+     * Decrypt a message with a private key, and return the plaintext.
+     * The encrypted bytes must not include the signature text.
+     * To remove a signature in the logon packet, split by @ symbol and remove the second part.
+     * Otherwise, use removeSignature.
+     * @see #removeSignature(String, PublicKey)
+     * @see #decryptAndConcatenate(String, PrivateKey)
+     * @param encryptedMessage The encrypted message in byte form.
+     * @param privateKey The private key to decrypt with.
+     * @return The decrypted message in byte form.
+     */
+    public static String decryptMessage(String encryptedMessage, PrivateKey privateKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.DECRYPT_MODE, privateKey);
-        return cipher.doFinal(encryptedMessage);
+        return new String(cipher.doFinal(encryptedMessage.getBytes()));
     }
 
+    /**
+     * Encrypt a message with a public key, and concatenate the encrypted chunks with ampersands.
+     * The string can be of any length.
+     * @param message The message to encrypt.
+     * @param publicKey The public key to encrypt with.
+     * @return The encrypted message in string form.
+     */
     public static String encryptAndConcatenate(String message, PublicKey publicKey) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
         // Split the message into chunks of 245 bytes
         List<byte[]> encryptedChunks = new ArrayList<>();
         int offset = 0;
         while (offset < message.length()) {
-            int chunkSize = Math.min(245, message.length() - offset);
+            int chunkSize = Math.min(128, message.length() - offset);
             String chunk = message.substring(offset, offset + chunkSize);
-            byte[] encryptedChunk = encryptMessage(chunk, publicKey);
-            encryptedChunks.add(encryptedChunk);
+            String encryptedChunk = encryptMessage(chunk, publicKey);
+            encryptedChunks.add(encryptedChunk.getBytes());
             offset += chunkSize;
         }
 
@@ -80,6 +126,13 @@ public class Security {
         return concatenated.toString();
     }
 
+    /**
+     * Decrypt a message with a private key, and concatenate the decrypted chunks.
+     * The encrypted message must be in the form of concatenated chunks with ampersands.
+     * @param concatenatedMessage The encrypted message in string form.
+     * @param privateKey The private key to decrypt with.
+     * @return The decrypted message in string form.
+     */
     public static String decryptAndConcatenate(String concatenatedMessage, PrivateKey privateKey) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
         // Split the concatenated message by ampersands
         String[] encryptedChunks = concatenatedMessage.split("&");
@@ -87,20 +140,33 @@ public class Security {
         // Decrypt each chunk separately and concatenate them
         StringBuilder decrypted = new StringBuilder();
         for (String encryptedChunk : encryptedChunks) {
-            byte[] encryptedBytes = Base64.getDecoder().decode(encryptedChunk);
-            byte[] decryptedBytes = decryptMessage(encryptedBytes, privateKey);
+            String encryptedBytes = new String(Base64.getDecoder().decode(encryptedChunk));
+            String decryptedBytes = decryptMessage(encryptedBytes, privateKey);
             decrypted.append(new String(decryptedBytes));
         }
         return decrypted.toString();
     }
 
-    public static byte[] signMessage(String message, PrivateKey privateKey) throws NoSuchAlgorithmException, SignatureException, InvalidKeyException {
+    /**
+     * Sign a message with a private key, and return the signature.
+     * @param message The message to sign.
+     * @param privateKey The private key to sign with.
+     * @return The signature in byte form.
+     */
+    public static String signMessage(String message, PrivateKey privateKey) throws NoSuchAlgorithmException, SignatureException, InvalidKeyException {
         Signature signature = Signature.getInstance("SHA256withRSA");
         signature.initSign(privateKey);
         signature.update(message.getBytes());
-        return signature.sign();
+        return new String(signature.sign());
     }
 
+    /**
+     * Verify a signature with a public key.
+     * @param message The message to verify.
+     * @param signatureBytes The signature in byte form.
+     * @param publicKey The public key to verify with.
+     * @return True if the signature is valid, false otherwise.
+     */
     public static boolean verifySignature(String message, byte[] signatureBytes, PublicKey publicKey) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         Signature signature = Signature.getInstance("SHA256withRSA");
         signature.initVerify(publicKey);
@@ -108,12 +174,24 @@ public class Security {
         return signature.verify(signatureBytes);
     }
 
+    /**
+     * Add a signature to a message, and return the signed message.
+     * @param message The message to sign.
+     * @param privateKey The private key to sign with.
+     * @return The signed message in string form.
+     */
     public static String addSignature(String message, PrivateKey privateKey) throws InvalidKeyException, NoSuchAlgorithmException, SignatureException {
-        byte[] signatureBytes = signMessage(message, privateKey);
-        String signature = Base64.getEncoder().encodeToString(signatureBytes);
+        String signatureBytes = signMessage(message, privateKey);
+        String signature = Base64.getEncoder().encodeToString(signatureBytes.getBytes());
         return message + "@" + signature;
     }
 
+    /**
+     * Remove a signature from a signed message, and return the original message.
+     * @param signedMessage The signed message in string form.
+     * @param publicKey The public key to verify with.
+     * @return The original message in string form.
+     */
     public static String removeSignature(String signedMessage, PublicKey publicKey) throws InvalidKeyException, NoSuchAlgorithmException, SignatureException {
         int atIndex = signedMessage.lastIndexOf('@');
         if (atIndex == -1) {
