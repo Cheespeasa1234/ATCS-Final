@@ -1,20 +1,21 @@
 package client;
 import java.io.*;
 import java.net.*;
-import java.security.*;
-
-import java.util.Map;
 
 import javax.crypto.*;
 
 import conn.Packet;
 
-public class ClientNetworker {
+/**
+ * The ClientNetworker is the thread that parses and manages authentication and communication with the server.
+ * It is responsible for receiving packets from the server, and queuing them for processing.
+ */
+public class Networker {
 
     private static PrintWriter out;
     private static LobbyHandler lobbyHandler;
 
-    public static void main(String[] args) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+    public static void main(String[] args) {
         String serverAddress = "localhost"; // Use localhost to connect to the server running on the same machine
         int port = 58008; // Change this to the port number of your server
 
@@ -41,9 +42,5 @@ public class ClientNetworker {
         } catch (IOException e) {
             System.err.println("Error: " + e.getMessage());
         }
-    }
-
-    public void sendPacket(Packet packet) throws InvalidKeyException, NoSuchAlgorithmException, SignatureException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
-        out.println(packet.toString());
     }
 }
