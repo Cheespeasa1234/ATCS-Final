@@ -29,6 +29,7 @@ public class Packet {
         }
     }
 
+    
     public Packet(String type, Map<String, String> info) {
         this.packetType = type;
         this.packetInfo = new HashMap<String, String>(info);
