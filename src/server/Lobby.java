@@ -11,39 +11,27 @@ import conn.Packet;
  */
 public class Lobby implements Runnable {
     
-    private class ChatMessage {
-        public String message;
-        public String sender;
-        public ChatMessage(String message, String sender) {
-            this.message = message;
-            this.sender = sender;
-        }
-    }
-
-    private ArrayList<ClientHandler> clients;
-    private ArrayList<ChatMessage> chat;
+    private volatile ArrayList<ClientHandler> clients;
 
     @Override public void run() {
         clients = new ArrayList<ClientHandler>();
-        chat = new ArrayList<ChatMessage>();
         while (true) {
             for (ClientHandler client: clients) {
-                for (Packet packet: client.packetQueue) {
+                while(!client.incomingPacketQueue.isEmpty()) {
+                    Packet packet = client.incomingPacketQueue.poll();
                     String type = packet.getType();
                     if (type.equals("CHAT")) {
                         String message = packet.getInfo("message");
                         addChatMessage(message, client.displayName);
                     }
                 }
-                client.packetQueue.clear();
             }
         }
     }
 
     public void addChatMessage(String message, String sender) {
-        chat.add(new ChatMessage(message, sender));
         for (ClientHandler client: clients) {
-            client.out.println(new Packet("CHAT", Map.of("message", message, "sender", sender)).toString());
+            client.outgoingPacketQueue.add(new Packet("CHAT", Map.of("message", message, "sender", sender)));
         }
     }
 

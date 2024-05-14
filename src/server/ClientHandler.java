@@ -3,6 +3,8 @@ package server;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import conn.Packet;
 
@@ -19,7 +21,8 @@ public class ClientHandler implements Runnable {
     public PrintWriter out;
     public long ping;
 
-    public ArrayList<Packet> packetQueue;
+    public volatile Queue<Packet> incomingPacketQueue = new LinkedList<Packet>();
+    public volatile Queue<Packet> outgoingPacketQueue = new LinkedList<Packet>();
 
     public ClientHandler(Socket clientSocket) {
 
@@ -37,8 +40,6 @@ public class ClientHandler implements Runnable {
         while (Networker.clients.stream().anyMatch(c -> c.clientID == this.clientID)) {
             this.clientID = (int) (Math.random() * 99999);
         }
-
-        packetQueue = new ArrayList<Packet>();
 
     }
 
@@ -65,7 +66,7 @@ public class ClientHandler implements Runnable {
             while ((inputLine = in.readLine()) != null) {
                 System.out.println("Received from client: " + inputLine);
                 Packet packet = new Packet(inputLine);
-                this.packetQueue.add(packet);
+                this.incomingPacketQueue.add(packet);
             }
 
             // This loop will exit when the client disconnects
