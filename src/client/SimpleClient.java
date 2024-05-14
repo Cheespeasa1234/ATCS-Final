@@ -28,20 +28,11 @@ public class SimpleClient {
             String serverResponse;
             while ((serverResponse = in.readLine()) != null) {
                 System.out.println("Server says: " + serverResponse);
-                Packet packet = new Packet(serverResponse);
-                if (packet.getType().equals("CHECKUP")) {
-                    out.println(handleCheckupPacket(packet).toString());
-                }        
+                Packet packet = new Packet(serverResponse);      
             }
 
         } catch (IOException e) {
             System.err.println("Error: " + e.getMessage());
         }
-    }
-
-    private static Packet handleCheckupPacket(Packet packet) {
-        // Send back a checkup packet, with the same headers, but content is the hash of the content
-        String hash = packet.toString().hashCode() + "";
-        return new Packet("CHECKUP", Map.of("enc", "false", "sent", packet.getInfo("sent"), "content", hash));
     }
 }

@@ -3,24 +3,28 @@ package server;
 import java.io.*;
 import java.net.*;
 import java.security.*;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import conn.Packet;
-import conn.Security;
 
-class ClientHandler implements Runnable {
+/**
+ * Thread that handles a single client connection. 
+ * It is responsible for managing network and comms.
+ * The Lobby is the thread that manages the game state.
+ */
+public class ClientHandler extends Object implements Runnable {
 
-    private final Socket clientSocket;
-    private int clientID;
-    
-    public String displayName;
     public PrintWriter out;
-    public long ping;
+    private Socket clientSocket;
+    private int clientID;
+
+    private Queue<Packet> incomingPacketQueue = new LinkedList<Packet>(); // DO NOT MANAGE THIS YOURSELF. USE THE SYNCHRONIZED METHODS BELOW
 
     public ClientHandler(Socket clientSocket) {
 
         // Establish a connection
         this.clientSocket = clientSocket;
-        this.ping = -1;
         try {
             this.out = new PrintWriter(clientSocket.getOutputStream(), true);
         } catch (IOException e) {
@@ -53,13 +57,7 @@ class ClientHandler implements Runnable {
                 Packet packet = new Packet(inputLine);
                 System.out.println("@" + this.clientID + " says: " + packet.toString());
 
-                if (packet.getType().equals("LOGON")) {
-                    this.displayName = packet.getInfo("username");
-                } else if (packet.getType().equals("CHECKUP")) {
-                    String startTime = packet.getInfo("sent");
-                    // Get the time difference
-                    this.ping = System.currentTimeMillis() - Long.parseLong(startTime);
-                }
+                // Handle the packet
             }
 
             System.out.println("Client disconnected: " + clientSocket.getInetAddress().getHostAddress());

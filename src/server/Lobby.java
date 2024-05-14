@@ -12,9 +12,8 @@ public class Lobby implements Runnable {
     public void run() {
         while (true) {
             // Broadcast message to all connected clients
-            String now = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
             for (ClientHandler client: Server.clients) {
-                Packet packet = new Packet("CHECKUP", Map.of("enc", "false", "sent", now, "ping", client.ping + ""));
+                Packet packet = new Packet("CHECKUP", Map.of("sent", System.currentTimeMillis() + ""));
                 client.out.println(packet.toString());
             }
 
