@@ -3,18 +3,23 @@ package server;
 import java.io.*;
 import java.net.*;
 import java.security.*;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import conn.Packet;
+import conn.PacketQueue;
 import conn.Security;
 
 class ClientHandler implements Runnable {
 
     private final Socket clientSocket;
     private int clientID;
-    
+
     public String displayName;
     public PrintWriter out;
     public long ping;
+
+    public PacketQueue packetQueue = new PacketQueue();
 
     public ClientHandler(Socket clientSocket) {
 
@@ -29,7 +34,7 @@ class ClientHandler implements Runnable {
 
         // Generate security details
         this.clientID = (int) (Math.random() * 99999);
-        while (Server.clients.stream().anyMatch(c -> c.clientID == this.clientID)) {
+        while (Server.getClients().stream().anyMatch(c -> c.clientID == this.clientID)) {
             this.clientID = (int) (Math.random() * 99999);
         }
 
@@ -41,35 +46,28 @@ class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.err.println("Error closing client socket: " + e.getMessage());
         }
-        Server.clients.remove(this);
+        Server.removeClient(this);
     }
 
-    @Override
-    public void run() {
+    @Override public void run() {
+
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
             String inputLine;
 
             while ((inputLine = in.readLine()) != null) {
                 Packet packet = new Packet(inputLine);
-                System.out.println("@" + this.clientID + " says: " + packet.toString());
-
-                if (packet.getType().equals("LOGON")) {
-                    this.displayName = packet.getInfo("username");
-                } else if (packet.getType().equals("CHECKUP")) {
-                    String startTime = packet.getInfo("sent");
-                    // Get the time difference
-                    this.ping = System.currentTimeMillis() - Long.parseLong(startTime);
-                }
+                packetQueue.incomingAddPacket(packet);
             }
 
             System.out.println("Client disconnected: " + clientSocket.getInetAddress().getHostAddress());
-            Server.clients.remove(this); // Remove this client from the list
+            Server.removeClient(this); // Remove this client from the list
             clientSocket.close();
         } catch (IOException e) {
             String message = e.getMessage();
             if (message.equals("Connection reset")) {
-                System.out.println("@" + this.clientID + "disconnected: " + clientSocket.getInetAddress().getHostAddress());
-                Server.clients.remove(this); // Remove this client from the list
+                System.out.println(
+                        "@" + this.clientID + "disconnected: " + clientSocket.getInetAddress().getHostAddress());
+                Server.removeClient(this); // Remove this client from the list
             } else {
                 System.err.println("Error handling client: " + e.getMessage());
             }

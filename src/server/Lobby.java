@@ -6,16 +6,53 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 import conn.Packet;
+import conn.Packet.PacketFactory;
 
 public class Lobby implements Runnable {
-    @Override
-    public void run() {
-        while (true) {
+    @Override public void run() {
+
+        new Thread(new Runnable() {
+            @Override public void run() {
+                while (true) {
+                    for (ClientHandler client : Server.getClients()) {
+                        while (client.packetQueue.outgoingHasNextPacket()) {
+                            Packet packet = client.packetQueue.outgoingNextPacket();
+                            System.out.println("ClientHandler.java Sent: " + packet.toString());
+                            client.out.println(packet.toString());
+                        }
+
+                        while (client.packetQueue.incomingHasNextPacket()) {
+                            Packet packet = client.packetQueue.incomingNextPacket();
+                            System.out.println("ClientHandler.java Recieved: " + packet.toString());
+
+                            if (packet.getType().equals("CHAT")) {
+                                packet
+                                    .enforcePacketHasProperty("sender")
+                                    .enforcePacketHasProperty("content");
+
+                                for (ClientHandler otherClient : Server.getClients()) {
+                                    if (otherClient != client) {
+                                        otherClient.packetQueue.outgoingAddPacket(packet);
+                                    }
+                                }
+                            } else if (packet.getType().equals("JOINGAME")) {
+                                packet
+                                    .enforcePacketHasProperty("name")
+                                    .enforcePacketHasProperty("");
+                            }
+                        }
+                    }
+                }
+            }
+        }).start();
+
+        while (true)
+
+        {
             // Broadcast message to all connected clients
-            String now = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
-            for (ClientHandler client: Server.clients) {
-                Packet packet = new Packet("CHECKUP", Map.of("enc", "false", "sent", now, "ping", client.ping + ""));
-                client.out.println(packet.toString());
+            for (ClientHandler client : Server.getClients()) {
+                Packet packet = new Packet("CHECKUP", Map.of("sent", System.currentTimeMillis() + ""));
+                client.packetQueue.outgoingAddPacket(packet);
             }
 
             try {
@@ -26,5 +63,4 @@ public class Lobby implements Runnable {
             }
         }
     }
-
 }

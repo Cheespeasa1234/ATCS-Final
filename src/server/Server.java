@@ -1,14 +1,21 @@
 package server;
 import java.io.*;
 import java.net.*;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Server {
-    public static List<ClientHandler> clients = new ArrayList<>();
+    private static List<ClientHandler> clients = new ArrayList<ClientHandler>();
+    public static synchronized List<ClientHandler> getClients() {
+        return clients;
+    }
+    public static synchronized void addClient(ClientHandler client) {
+        clients.add(client);
+    }
+    public static synchronized void removeClient(ClientHandler client) {
+        clients.remove(client);
+    }
+
 
     public static void main(String[] args) {
         // Start the server
