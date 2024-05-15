@@ -5,12 +5,6 @@ import java.util.Map;
 
 public class Packet {
 
-    /**
-     * Client Packet types:
-     * LOGON: Headers have username and enc status. Content is discarded.
-     * CHAT: sender:String,content:String
-     */
-
     private HashMap<String, String> packetInfo;
     private String packetType;
     private long timeRecieved;
@@ -78,29 +72,20 @@ public class Packet {
         return this;
     }
 
-    public static class PacketTypeEnforcer {
+    public static String sanitize(String text) {
+        // Remove all characters except allowed ones
+        String sanitizedText = text.replaceAll("[^a-zA-Z0-9!.,?/\\s]", "");
 
-        public static HashMap<String, String[]> packetTypeRules = new HashMap<String, String[]>() {{
-            put("CHAT",  new String[] {"sender", "content"});
-        }};
+        // Replace newlines and tabs with spaces
+        sanitizedText = sanitizedText.replaceAll("[\n\t]", " ");
 
+        return sanitizedText;
     }
 
-    public static class PacketFactory {
-
-        public static String sanitize(String text) {
-            // Remove all characters except allowed ones
-            String sanitizedText = text.replaceAll("[^a-zA-Z0-9!.,?/\\s]", "");
-
-            // Replace newlines and tabs with spaces
-            sanitizedText = sanitizedText.replaceAll("[\n\t]", " ");
-
-            return sanitizedText;
+    public Packet sanitizePacketInfo() {
+        for (Map.Entry<String, String> entry : this.packetInfo.entrySet()) {
+            this.packetInfo.put(entry.getKey(), sanitize(entry.getValue()));
         }
-
-        public static Packet createStandardPacket(String packetType, String[] keys, String[] values) {
-
-        }
-
+        return this;
     }
 }

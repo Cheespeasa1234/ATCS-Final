@@ -4,17 +4,20 @@ import java.util.ArrayList;
 import java.util.Map;
 
 import conn.Packet;
-import conn.Packet.PacketFactory;
 
 /**
- * The Lobby is the thread that manages the state of the server, and interacts with the clients.
- * It is also responsible for processing packets in the queue and sending responses to the clients.
+ * The Lobby is the thread that manages the state of the server, and interacts
+ * with the clients.
+ * It is also responsible for processing packets in the queue and sending
+ * responses to the clients.
  */
 public class Lobby implements Runnable {
-    @Override public void run() {
+    @Override
+    public void run() {
 
         new Thread(new Runnable() {
-            @Override public void run() {
+            @Override
+            public void run() {
                 while (true) {
                     for (ClientHandler client : Server.getClients()) {
                         while (client.packetQueue.outgoingHasNextPacket()) {
@@ -38,9 +41,7 @@ public class Lobby implements Runnable {
                                     }
                                 }
                             } else if (packet.getType().equals("JOINGAME")) {
-                                packet
-                                        .enforcePacketHasProperty("name")
-                                        .enforcePacketHasProperty("");
+                            
                             }
                         }
                     }
