@@ -29,9 +29,7 @@ public class Lobby implements Runnable {
                     String type = packet.get("type").getAsString();
                     if (type.equals("CHAT")) {
                         for (ClientHandler otherClient : Server.getClients()) {
-                            if (otherClient != client) {
-                                otherClient.dataManager.dataQueue.outgoingAddPacket(packet);
-                            }
+                            otherClient.dataManager.dataQueue.outgoingAddPacket(packet);
                         }
                     } else if (type.equals("JOINGAME")) {
 

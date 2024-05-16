@@ -50,12 +50,12 @@ public class DataManager {
 
         // Input thread
         new Thread(() -> {
-            String serverResponse;
+            String response;
             try {
-                while ((serverResponse = in.readLine()) != null) {
-                    System.out.println("Recieved: '" + serverResponse + "'");
-                    if (!serverResponse.equals("null")) {
-                        JsonObject packet = gson.fromJson(serverResponse, JsonObject.class);
+                while ((response = in.readLine()) != null) {
+                    System.out.println("Recieved: '" + response + "'");
+                    if (!response.equals("null")) {
+                        JsonObject packet = gson.fromJson(response, JsonObject.class);
                         dataQueue.incomingAddPacket(packet);
                     }
                 }

@@ -62,6 +62,7 @@ public class ClientHandler implements Runnable {
     @Override public void run() {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
             dataManager = new DataManager(in, out);
+            while (true) {} // Keep the thread alive
         } catch (IOException e) {
             String message = e.getMessage();
             if (message.equals("Connection reset")) {

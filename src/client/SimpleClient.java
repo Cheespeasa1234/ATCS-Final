@@ -24,7 +24,7 @@ public class SimpleClient implements Runnable {
 
             System.out.println("Connected to server on " + address + ":" + port);
             dataManager = new DataManager(in, out);
-            dataManager.dataQueue.incomingAddPacket(dataManager.createPacket("LOGON", "{}"));
+            dataManager.dataQueue.outgoingAddPacket(dataManager.createPacket("LOGON", "{}"));
 
         } catch (IOException e) {
             System.err.println("Error: " + e.getMessage());
