@@ -18,8 +18,10 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+
 import client.component.ChatBox;
-import conn.Packet;
 
 public class Game extends JPanel {
 
@@ -28,6 +30,7 @@ public class Game extends JPanel {
 
     private SimpleClient client;
     private ChatBox chatbox;
+    private Gson gson = new Gson();
 
     public Game() {
         this.setFocusable(true);
@@ -36,7 +39,8 @@ public class Game extends JPanel {
         chatbox = new ChatBox();
         chatbox.sendChatButton.addActionListener(e -> {
             String message = chatbox.inputBox.getText();
-            client.packetQueue.outgoingAddPacket(Packet.PacketFactory.chatMessagePacket("CLIENT", message));
+            client.dataManager.dataQueue.outgoingAddPacket(gson.fromJson(
+                "{ \"type\": \"CHAT\", \"data\": { \"content\": \"" + message + "\" } }", JsonObject.class));
 
             chatbox.addToChatbox("YOU: " + message);
         });
@@ -44,22 +48,17 @@ public class Game extends JPanel {
 
         client = new SimpleClient("localhost", 58008);
 
-        new Thread(new Runnable() {
-            @Override public void run() {
-                while (true) {
-                    while (client.packetQueue.outgoingHasNextPacket()) {
-                        Packet packet = client.packetQueue.outgoingNextPacket();
-                        client.sendPacket(packet);
-                        System.out.println("Game.java Sent: " + packet.toString());
-                    }
+        new Thread(() -> {
+            while (true) {
+                while (client.dataManager.dataQueue.incomingHasNextPacket()) {
+                    JsonObject packet = client.dataManager.dataQueue.incomingNextPacket();
+                    System.out.println("Game.java Recieved: " + packet.toString());
 
-                    while (client.packetQueue.incomingHasNextPacket()) {
-                        Packet packet = client.packetQueue.incomingNextPacket();
-                        System.out.println("Game.java Recieved: " + packet.toString());
-
-                        if (packet.getType().equals("CHAT")) {
-                            chatbox.addToChatbox(packet.getInfo("sender") + ": " + packet.getInfo("content"));                            
-                        }
+                    String type = packet.get("type").getAsString();
+                    if (type.equals("CHAT")) {
+                        String message = packet.get("data").getAsJsonObject().get("content").getAsString();
+                        String sender = packet.get("data").getAsJsonObject().get("sender").getAsString();
+                        chatbox.addToChatbox(sender + ": " + message);
                     }
                 }
             }

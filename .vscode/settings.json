@@ -3,7 +3,8 @@
     "java.project.outputPath": "bin",
     "java.project.referencedLibraries": [
         "lib/**/*.jar",
-        "d:\\Downloads\\gson-2.10.1.jar"
+        "d:\\Downloads\\gson-2.10.1.jar",
+        "/Users/nlevison25/Downloads/gson-2.10.1 (1).jar"
     ],
     "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m -Xlog:disable"
 }

@@ -6,9 +6,11 @@ import java.security.*;
 import java.util.LinkedList;
 import java.util.Queue;
 
-import conn.Packet;
-import conn.PacketQueue;
+import conn.DataManager;
 import conn.Security;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 /**
  * The ClientHandler is the thread that manages communication with a single client.
@@ -23,7 +25,7 @@ public class ClientHandler implements Runnable {
     public PrintWriter out;
     public long ping;
 
-    public PacketQueue packetQueue = new PacketQueue();
+    public DataManager dataManager;
 
     public ClientHandler(Socket clientSocket) {
 
@@ -58,21 +60,8 @@ public class ClientHandler implements Runnable {
     }
 
     @Override public void run() {
-
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-            
-            // Read messages from the client
-            // TODO: Implement packet handling
-            String inputLine;
-            while ((inputLine = in.readLine()) != null) {
-                System.out.println("Received from client: " + inputLine);
-                Packet packet = new Packet(inputLine);
-                packetQueue.incomingAddPacket(packet);
-            }
-
-            System.out.println("Client disconnected: " + clientSocket.getInetAddress().getHostAddress());
-            Server.removeClient(this); // Remove this client from the list
-            clientSocket.close();
+            dataManager = new DataManager(in, out);
         } catch (IOException e) {
             String message = e.getMessage();
             if (message.equals("Connection reset")) {

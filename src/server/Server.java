@@ -36,8 +36,8 @@ public class Server {
                 
                 // Create a new ClientHandler for the connected client
                 ClientHandler clientHandler = new ClientHandler(clientSocket);
-                clients.add(clientHandler); // Add to the list of connected clients
                 new Thread(clientHandler).start();
+                clients.add(clientHandler); // Add to the list of connected clients
             }
         } catch (IOException e) {
             System.err.println("Error connecting new client: " + e.getMessage());
