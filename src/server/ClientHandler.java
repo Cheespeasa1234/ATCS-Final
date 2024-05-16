@@ -40,8 +40,20 @@ public class ClientHandler implements Runnable {
 
         // Generate security details
         this.clientID = (int) (Math.random() * 99999);
-        while (Server.getClients().stream().anyMatch(c -> c.clientID == this.clientID)) {
+        while (true) {
+            boolean unique = true;
+            for (int i = 0; i < Server.getClientCount(); i++) {
+                ClientHandler client = Server.getClientIndex(i);
+                if (client.clientID == this.clientID) {
+                    unique = false;
+                    break;
+                }
+            }
+            if (unique) {
+                break;
+            }
             this.clientID = (int) (Math.random() * 99999);
+
         }
 
     }
@@ -62,7 +74,8 @@ public class ClientHandler implements Runnable {
     @Override public void run() {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
             dataManager = new DataManager(in, out);
-            while (true) {} // Keep the thread alive
+            while (true) {
+            } // Keep the thread alive
         } catch (IOException e) {
             String message = e.getMessage();
             if (message.equals("Connection reset")) {

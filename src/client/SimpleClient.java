@@ -10,10 +10,12 @@ public class SimpleClient implements Runnable {
     public DataManager dataManager;
     private String address;
     private int port;
+    private Runnable onStart;
 
-    public SimpleClient(String address, int port) {
+    public SimpleClient(String address, int port, Runnable onStart) {
         this.address = address;
         this.port = port;
+        this.onStart = onStart;
     }
 
     @Override public void run() {
@@ -26,6 +28,8 @@ public class SimpleClient implements Runnable {
             dataManager = new DataManager(in, out);
             dataManager.dataQueue.outgoingAddPacket(dataManager.createPacket("LOGON", "{}"));
 
+            onStart.run();
+            while (true) {} // Keep the thread alive
         } catch (IOException e) {
             System.err.println("Error: " + e.getMessage());
         }

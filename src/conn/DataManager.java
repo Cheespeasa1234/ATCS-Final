@@ -44,6 +44,12 @@ public class DataManager {
         }
     }
 
+    private Runnable inputTerminationEvent;
+
+    public void addInputTerminationEvent(Runnable r) {
+        this.inputTerminationEvent = r;
+    }
+
     public DataManager(BufferedReader in, PrintWriter out) {
         gson = new Gson();
         dataQueue = new DataQueue();
@@ -58,6 +64,9 @@ public class DataManager {
                         JsonObject packet = gson.fromJson(response, JsonObject.class);
                         dataQueue.incomingAddPacket(packet);
                     }
+                }
+                if (inputTerminationEvent != null) {
+                    inputTerminationEvent.run();
                 }
             } catch (JsonSyntaxException | IOException e) {
                 e.printStackTrace();
@@ -79,5 +88,14 @@ public class DataManager {
     public JsonObject createPacket(String type, String jsonData) {
         JsonObject data = gson.fromJson(jsonData, JsonObject.class);
         return gson.fromJson("{ \"type\": \"" + type + "\", \"data\": " + data + " }", JsonObject.class);
+    }
+
+    public static boolean packetDataHasKeys(JsonObject packet, String[] keys) {
+        for (String key : keys) {
+            if (!packet.get("data").getAsJsonObject().has(key)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

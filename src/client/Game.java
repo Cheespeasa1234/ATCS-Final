@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import client.component.ChatBox;
+import conn.DataManager;
 
 public class Game extends JPanel {
 
@@ -40,25 +41,36 @@ public class Game extends JPanel {
         chatbox.sendChatButton.addActionListener(e -> {
             String message = chatbox.inputBox.getText();
             client.dataManager.dataQueue.outgoingAddPacket(gson.fromJson(
-                "{ \"type\": \"CHAT\", \"data\": { \"content\": \"" + message + "\" } }", JsonObject.class));
-
-            chatbox.addToChatbox("YOU: " + message);
+                "{ \"type\": \"CHAT\", \"data\": { \"content\": \"" + message + "\", \"sender\": \"CLIENT\" } }", JsonObject.class));
         });
         this.add(chatbox);
 
-        client = new SimpleClient("localhost", 58008);
+        // When the client starts, add a termination event to the datamanager
+        client = new SimpleClient("localhost", 58008, () -> {
+            client.dataManager.addInputTerminationEvent(() -> {
+                System.out.println("Connection terminated.");
+                System.exit(0);
+            });
+        });
 
         new Thread(() -> {
+            System.out.println("Game.java Thread started.");
             while (true) {
-                while (client.dataManager.dataQueue.incomingHasNextPacket()) {
+                System.out.println("Game.java Looping.");
+                while (client.dataManager != null && client.dataManager.dataQueue.incomingHasNextPacket()) {
                     JsonObject packet = client.dataManager.dataQueue.incomingNextPacket();
                     System.out.println("Game.java Recieved: " + packet.toString());
 
                     String type = packet.get("type").getAsString();
                     if (type.equals("CHAT")) {
-                        String message = packet.get("data").getAsJsonObject().get("content").getAsString();
-                        String sender = packet.get("data").getAsJsonObject().get("sender").getAsString();
-                        chatbox.addToChatbox(sender + ": " + message);
+                        if (DataManager.packetDataHasKeys(packet, new String[] { "content", "sender" })) {
+                            System.out.println("Chat packet recieved. Adding to screen now.");
+                            String message = packet.get("data").getAsJsonObject().get("content").getAsString();
+                            String sender = packet.get("data").getAsJsonObject().get("sender").getAsString();
+                            chatbox.addToChatbox(sender + ": " + message);
+                        } else {
+                            System.err.println("Invalid CHAT packet recieved.");
+                        }
                     }
                 }
             }

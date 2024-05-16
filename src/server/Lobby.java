@@ -16,10 +16,12 @@ public class Lobby implements Runnable {
     @Override public void run() {
 
         while (true) {
-            for (ClientHandler client : Server.getClients()) {
-                
+            clientLoop: for (int i = 0; i < Server.getClientCount(); i++) {
+                ClientHandler client = Server.getClientIndex(i);
+
                 if (client.dataManager == null) {
-                    continue;
+                    System.out.println("Skipped");
+                    continue clientLoop;
                 }
 
                 while (client.dataManager.dataQueue.incomingHasNextPacket()) {
@@ -28,7 +30,9 @@ public class Lobby implements Runnable {
 
                     String type = packet.get("type").getAsString();
                     if (type.equals("CHAT")) {
-                        for (ClientHandler otherClient : Server.getClients()) {
+                        System.out.println("Chat packet recieved. Sending now.");
+                        for (int j = 0; j < Server.getClientCount(); j++) {
+                            ClientHandler otherClient = Server.getClientIndex(j);
                             otherClient.dataManager.dataQueue.outgoingAddPacket(packet);
                         }
                     } else if (type.equals("JOINGAME")) {
