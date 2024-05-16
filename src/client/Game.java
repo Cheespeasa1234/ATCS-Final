@@ -37,14 +37,6 @@ public class Game extends JPanel {
         this.setFocusable(true);
         this.setBackground(Color.WHITE);
 
-        chatbox = new ChatBox();
-        chatbox.sendChatButton.addActionListener(e -> {
-            String message = chatbox.inputBox.getText();
-            client.dataManager.dataQueue.outgoingAddPacket(gson.fromJson(
-                "{ \"type\": \"CHAT\", \"data\": { \"content\": \"" + message + "\", \"sender\": \"CLIENT\" } }", JsonObject.class));
-        });
-        this.add(chatbox);
-
         // When the client starts, add a termination event to the datamanager
         client = new SimpleClient("localhost", 58008, () -> {
             client.dataManager.addInputTerminationEvent(() -> {
@@ -53,26 +45,40 @@ public class Game extends JPanel {
             });
         });
 
-        new Thread(() -> {
-            System.out.println("Game.java Thread started.");
-            while (true) {
-                System.out.println("Game.java Looping.");
-                while (client.dataManager != null && client.dataManager.dataQueue.incomingHasNextPacket()) {
-                    JsonObject packet = client.dataManager.dataQueue.incomingNextPacket();
-                    System.out.println("Game.java Recieved: " + packet.toString());
+        chatbox = new ChatBox();
+        chatbox.sendChatButton.addActionListener(e -> {
+            String message = chatbox.inputBox.getText();
+            client.dataManager.dataQueue.outgoingAddPacket(gson.fromJson(
+                "{ \"type\": \"CHAT\", \"data\": { \"content\": \"" + message + "\", \"sender\": \"CLIENT\" } }", JsonObject.class));
+        });
+        this.add(chatbox);
 
-                    String type = packet.get("type").getAsString();
-                    if (type.equals("CHAT")) {
-                        if (DataManager.packetDataHasKeys(packet, new String[] { "content", "sender" })) {
-                            System.out.println("Chat packet recieved. Adding to screen now.");
-                            String message = packet.get("data").getAsJsonObject().get("content").getAsString();
-                            String sender = packet.get("data").getAsJsonObject().get("sender").getAsString();
-                            chatbox.addToChatbox(sender + ": " + message);
-                        } else {
-                            System.err.println("Invalid CHAT packet recieved.");
+        new Thread(() -> {
+            try {
+                System.out.println("game input loop started");
+                while (true) {
+                    while (client.dataManager != null && client.dataManager.dataQueue.incomingHasNextPacket()) {
+                        JsonObject packet = client.dataManager.dataQueue.incomingNextPacket();
+                        System.out.println("Game.java Recieved: " + packet.toString());
+    
+                        String type = packet.get("type").getAsString();
+                        if (type.equals("CHAT")) {
+                            System.out.println("CHAT packet recieved.");
+                            if (DataManager.packetDataHasKeys(packet, new String[] { "content", "sender" })) {
+                                System.out.println("Chat packet recieved. Adding to screen now.");
+                                String message = packet.get("data").getAsJsonObject().get("content").getAsString();
+                                String sender = packet.get("data").getAsJsonObject().get("sender").getAsString();
+                                chatbox.addToChatbox(sender + ": " + message);
+                            } else {
+                                System.err.println("Invalid CHAT packet recieved.");
+                            }
                         }
                     }
+                    Thread.sleep(10);
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(1);
             }
         }).start();
 

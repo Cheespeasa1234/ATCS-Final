@@ -19,7 +19,6 @@ public class Server {
         return clients.size();
     }
 
-
     public static void main(String[] args) {
         
         // Start the server
