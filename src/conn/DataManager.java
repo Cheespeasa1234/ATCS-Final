@@ -16,18 +16,18 @@ public class DataManager {
     public Gson gson;
 
     public class DataQueue {
-        private Queue<JsonObject> incomingPacketQueue = new LinkedList<JsonObject>();
-        private Queue<JsonObject> outgoingPacketQueue = new LinkedList<JsonObject>();
+        private Queue<Packet> incomingPacketQueue = new LinkedList<Packet>();
+        private Queue<Packet> outgoingPacketQueue = new LinkedList<Packet>();
 
         public synchronized boolean incomingHasNextPacket() {
             return !incomingPacketQueue.isEmpty();
         }
 
-        public synchronized JsonObject incomingNextPacket() {
+        public synchronized Packet incomingNextPacket() {
             return incomingPacketQueue.poll();
         }
 
-        public synchronized void incomingAddPacket(JsonObject packet) {
+        public synchronized void incomingAddPacket(Packet packet) {
             incomingPacketQueue.add(packet);
         }
 
@@ -35,11 +35,11 @@ public class DataManager {
             return !outgoingPacketQueue.isEmpty();
         }
 
-        public synchronized JsonObject outgoingNextPacket() {
+        public synchronized Packet outgoingNextPacket() {
             return outgoingPacketQueue.poll();
         }
 
-        public synchronized void outgoingAddPacket(JsonObject packet) {
+        public synchronized void outgoingAddPacket(Packet packet) {
             outgoingPacketQueue.add(packet);
         }
     }
@@ -56,46 +56,36 @@ public class DataManager {
 
         // Input thread
         new Thread(() -> {
-            String response;
-            try {
-                while ((response = in.readLine()) != null) {
-                    System.out.println("Recieved: '" + response + "'");
-                    if (!response.equals("null")) {
-                        JsonObject packet = gson.fromJson(response, JsonObject.class);
-                        dataQueue.incomingAddPacket(packet);
+            while (true) {
+                String response;
+                try {
+                    while ((response = in.readLine()) != null) {
+                        System.out.println("Recieved: '" + response + "'");
+                        if (!response.equals("null")) {
+                            Packet p = Packet.fromJson(response);
+                            dataQueue.incomingAddPacket(p);
+                        }
                     }
+                    System.out.println("Connection terminated.");
+                    if (inputTerminationEvent != null) {
+                        inputTerminationEvent.run();
+                    }
+                } catch (JsonSyntaxException | IOException e) {
+                    e.printStackTrace();
                 }
-                if (inputTerminationEvent != null) {
-                    inputTerminationEvent.run();
-                }
-            } catch (JsonSyntaxException | IOException e) {
-                e.printStackTrace();
             }
         }).start();
 
-        // Output thread
         new Thread(() -> {
             while (true) {
-                if (dataQueue.outgoingHasNextPacket()) {
-                    JsonObject packet = dataQueue.outgoingNextPacket();
-                    System.out.println("Sending: " + packet.toString());
-                    out.println(packet);
+                while (dataQueue.outgoingHasNextPacket()) {
+                    Packet packet = dataQueue.outgoingNextPacket();
+                    System.out.println(packet);
+                    String json = packet.toJson().toString();
+                    System.out.println("Sending: '" + json + "'");
+                    out.println(json);
                 }
             }
         }).start();
-    }
-
-    public JsonObject createPacket(String type, String jsonData) {
-        JsonObject data = gson.fromJson(jsonData, JsonObject.class);
-        return gson.fromJson("{ \"type\": \"" + type + "\", \"data\": " + data + " }", JsonObject.class);
-    }
-
-    public static boolean packetDataHasKeys(JsonObject packet, String[] keys) {
-        for (String key : keys) {
-            if (!packet.get("data").getAsJsonObject().has(key)) {
-                return false;
-            }
-        }
-        return true;
     }
 }

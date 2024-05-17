@@ -19,11 +19,10 @@ import com.google.gson.JsonObject;
 public class ClientHandler implements Runnable {
 
     private final Socket clientSocket;
-    private int clientID;
+    public int clientID;
 
     public String displayName;
     public PrintWriter out;
-    public long ping;
 
     public DataManager dataManager;
 
@@ -31,7 +30,6 @@ public class ClientHandler implements Runnable {
 
         // Establish a connection
         this.clientSocket = clientSocket;
-        this.ping = -1;
         try {
             this.out = new PrintWriter(clientSocket.getOutputStream(), true);
         } catch (IOException e) {
@@ -74,8 +72,7 @@ public class ClientHandler implements Runnable {
     @Override public void run() {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
             dataManager = new DataManager(in, out);
-            while (true) {
-            } // Keep the thread alive
+            while (true) {} // Keep the thread alive
         } catch (IOException e) {
             String message = e.getMessage();
             if (message.equals("Connection reset")) {
