@@ -6,13 +6,17 @@ import java.net.*;
 import conn.DataManager;
 import conn.Packet;
 
+/**
+ * The manager of the connection to the server, client-side.
+ * It manages the data incoming and outgoing, events, and connection info.
+ */
 public class SimpleClient implements Runnable {
 
     public DataManager dataManager;
     private String address;
     private int port;
-    private String username;
     private Runnable onStart;
+    private String username;
 
     public SimpleClient(String address, int port, String username, Runnable onStart) {
         this.address = address;
@@ -23,19 +27,27 @@ public class SimpleClient implements Runnable {
 
     @Override public void run() {
         try {
+            
+            // Get a connection to the server
             Socket socket = new Socket(address, port);
             BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
+            // Send my username
             System.out.println("Connected to server on " + address + ":" + port);
-            dataManager = new DataManager(in, out);
-            Packet packet = Packet.logonPacket(username);
+            dataManager = new DataManager(in, out, "SimpleClient");
+            dataManager.addInputTerminationEvent(() -> {
+                System.out.println("Connection terminated");
+                System.exit(0);
+            });
+            Packet packet = Packet.logonPacket(this.username);
             System.out.println("Sending logon packet: " + packet.toJson().toString());
             dataManager.dataQueue.outgoingAddPacket(packet);
 
+            // Keep the thread alive
             onStart.run();
-            while (true) {} // Keep the thread alive
+            while (true) {}
         } catch (IOException e) {
             e.printStackTrace();
         }

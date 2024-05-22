@@ -50,13 +50,15 @@ public class DataManager {
         this.inputTerminationEvent = r;
     }
 
-    public DataManager(BufferedReader in, PrintWriter out) {
+    public volatile boolean running = true;
+
+    public DataManager(BufferedReader in, PrintWriter out, String threadNameFormat) {
         gson = new Gson();
         dataQueue = new DataQueue();
 
         // Input thread
         new Thread(() -> {
-            while (true) {
+            while (running) {
                 String response;
                 try {
                     while ((response = in.readLine()) != null) {
@@ -72,20 +74,22 @@ public class DataManager {
                     }
                 } catch (JsonSyntaxException | IOException e) {
                     e.printStackTrace();
+                    running = false;
+                    return;
                 }
             }
-        }).start();
+        }, "DataManager-Input-" + threadNameFormat).start();
 
         new Thread(() -> {
-            while (true) {
+            while (running) {
                 while (dataQueue.outgoingHasNextPacket()) {
                     Packet packet = dataQueue.outgoingNextPacket();
                     System.out.println(packet);
-                    String json = packet.toJson().toString();
+                    String json = packet.toString();
                     System.out.println("Sending: '" + json + "'");
                     out.println(json);
                 }
             }
-        }).start();
+        }, "DataManager-Output-" + threadNameFormat).start();
     }
 }

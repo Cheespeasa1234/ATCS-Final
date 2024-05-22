@@ -4,7 +4,6 @@ import java.awt.BorderLayout;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
-import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -23,7 +22,7 @@ public class ChatBox extends JPanel {
         // Set up the chats
         chatMessageModel = new DefaultListModel<>();
         chatMessageContainer = new JList<String>(chatMessageModel);
-        chatMessageContainer.setFixedCellWidth(400);
+        chatMessageContainer.setFixedCellWidth(this.getPreferredSize().width);
 
         // Set up the inputs
         JPanel inputBoxContainer = new JPanel();

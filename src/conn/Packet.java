@@ -5,17 +5,12 @@ import java.io.Serial;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
+import java.util.ArrayList;
+
+import server.Lobby;
 
 public class Packet {
 
-    public static class PlayerData {
-        @SerializedName("displayName") public String displayName;
-        @SerializedName("clientID") public int clientID;
-        public PlayerData(String displayName, int clientID) {
-            this.displayName = displayName;
-            this.clientID = clientID;
-        }
-    }
     public static class ChatPacketData {
         @SerializedName("content") public String message;
         @SerializedName("sender") public String sender;
@@ -25,32 +20,39 @@ public class Packet {
         }
     }
     public static class LogonPacketData {
-        @SerializedName("user") public String username;
-        public LogonPacketData(String username) {
-            this.username = username;
+        @SerializedName("name") public String name;
+        public LogonPacketData(String name) {
+            this.name = name;
         }
     }
     public static class GameStatePacketData {
-        @SerializedName("players") public PlayerData[] players;
+        @SerializedName("players") public PlayerLite[] players;
         @SerializedName("chatHistory") public ChatPacketData[] chatHistory;
-        @SerializedName("gameState") public String gameState;
-        public GameStatePacketData(PlayerData[] players, ChatPacketData[] chatHistory, String gameState) {
+        @SerializedName("gameState") public Lobby.GameState gameState;
+        public GameStatePacketData(PlayerLite[] players, ChatPacketData[] chatHistory, Lobby.GameState gameState) {
             this.players = players;
             this.chatHistory = chatHistory;
             this.gameState = gameState;
         }
     }
+    public static class StatusPacketData {
+        @SerializedName("status") public PlayerLite.PlayerStatus status;
+        public StatusPacketData(PlayerLite.PlayerStatus status) {
+            this.status = status;
+        }
+    }
 
     @SerializedName("type") public String type; 
-    @SerializedName("playerData") public PlayerData playerData;
+    @SerializedName("playerData") public PlayerLite playerData;
     @SerializedName("chatPacketData") public ChatPacketData chatPacketData;
     @SerializedName("logonPacketData") public LogonPacketData logonPacketData;
     @SerializedName("gameStatePacketData") public GameStatePacketData gameStatePacketData;
+    @SerializedName("statusPacketData") public StatusPacketData statusPacketData;
 
-    public static Packet playerDataPacket(String displayName, int clientID) {
+    public static Packet playerDataPacket(int clientID, PlayerLite playerLite) {
         Packet packet = new Packet();
         packet.type = "PLAYERDATA";
-        packet.playerData = new PlayerData(displayName, clientID);
+        packet.playerData = playerLite;
         return packet;
     }
 
@@ -61,18 +63,31 @@ public class Packet {
         return packet;
     }
 
-    public static Packet logonPacket(String username) {
+    public static Packet logonPacket(String name) {
         Packet packet = new Packet();
         packet.type = "LOGON";
-        packet.logonPacketData = new LogonPacketData(username);
+        packet.logonPacketData = new LogonPacketData(name);
         return packet;
     }
 
-    public static Packet gameStatePacket(PlayerData[] players, ChatPacketData[] chatHistory, String gameState) {
+    public static Packet gameStatePacket(ArrayList<PlayerLiteConn> players, ArrayList<ChatPacketData> chatHistory, Lobby.GameState gameState) {
         Packet packet = new Packet();
         packet.type = "GAMESTATE";
-        packet.gameStatePacketData = new GameStatePacketData(players, chatHistory, gameState);
+        PlayerLite[] playerArray = players.toArray(new PlayerLite[players.size()]);
+        ChatPacketData[] chatArray = chatHistory.toArray(new ChatPacketData[chatHistory.size()]);
+        packet.gameStatePacketData = new GameStatePacketData(playerArray, chatArray, gameState);
         return packet;
+    }
+
+    public static Packet statusPacket(PlayerLite.PlayerStatus status) {
+        Packet packet = new Packet();
+        packet.type = "STATUS";
+        packet.statusPacketData = new StatusPacketData(status);
+        return packet;
+    }
+
+    @Override public String toString() {
+        return this.toJson().toString();
     }
 
     public JsonObject toJson() {

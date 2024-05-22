@@ -18,13 +18,14 @@ import com.google.gson.JsonObject;
  */
 public class ClientHandler implements Runnable {
 
-    private final Socket clientSocket;
+    public final Socket clientSocket;
     public int clientID;
 
     public String displayName;
     public PrintWriter out;
 
     public DataManager dataManager;
+    public boolean closeme = false;
 
     public ClientHandler(Socket clientSocket) {
 
@@ -38,22 +39,6 @@ public class ClientHandler implements Runnable {
 
         // Generate security details
         this.clientID = (int) (Math.random() * 99999);
-        while (true) {
-            boolean unique = true;
-            for (int i = 0; i < Server.getClientCount(); i++) {
-                ClientHandler client = Server.getClientIndex(i);
-                if (client.clientID == this.clientID) {
-                    unique = false;
-                    break;
-                }
-            }
-            if (unique) {
-                break;
-            }
-            this.clientID = (int) (Math.random() * 99999);
-
-        }
-
     }
 
     /**
@@ -66,22 +51,41 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.err.println("Error closing client socket: " + e.getMessage());
         }
-        Server.removeClient(this);
+        dataManager.running = false;
+        closeme = true;
+        running = false;
     }
+
+    // Declare a volatile boolean flag to control the loop
+    private volatile boolean running = true;
 
     @Override public void run() {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-            dataManager = new DataManager(in, out);
-            while (true) {} // Keep the thread alive
+            dataManager = new DataManager(in, out, clientSocket.getInetAddress().getHostAddress());
+            dataManager.addInputTerminationEvent(() -> {
+                this.closeConnection();
+                running = false; // Set the flag to false when termination event occurs
+            });
+
+            // Loop while the flag is true
+            while (running) {
+                // Add a small sleep to prevent busy-waiting
+                Thread.sleep(100);
+            }
+            System.out.println("@" + this.clientID + " thread terminated");
         } catch (IOException e) {
             String message = e.getMessage();
             if (message.equals("Connection reset")) {
                 System.out.println(
-                        "@" + this.clientID + "disconnected: " + clientSocket.getInetAddress().getHostAddress());
-                Server.removeClient(this); // Remove this client from the list
+                        "@" + this.clientID + "disconnected because connection reset: "
+                                + clientSocket.getInetAddress().getHostAddress());
             } else {
                 System.err.println("Error handling client: " + e.getMessage());
             }
+        } catch (InterruptedException e) {
+            // Handle interruption
+            Thread.currentThread().interrupt();
+            System.err.println("Thread was interrupted: " + e.getMessage());
         }
     }
 
