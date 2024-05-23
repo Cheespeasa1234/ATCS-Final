@@ -1,15 +1,13 @@
 package server;
 
 import java.util.ArrayList;
-import java.util.Map;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 
 import conn.Packet;
 import conn.PlayerLite;
 import conn.PlayerLiteConn;
+import conn.Utility;
+import conn.Packet.ChatPacketData;
+import conn.Utility.Election;
 
 /**
  * The Lobby is the thread that manages the state of the server, and interacts
@@ -18,65 +16,96 @@ import conn.PlayerLiteConn;
  * responses to the clients.
  */
 public class Lobby implements Runnable {
-
-    public static enum GameState {
-        WAITING, MAKING_PROMPTS, VOTING_PROMPTS, MAKING_PAINTINGS, VOTING_PAINTINGS, GAME_END
-    }
-
-    public GameState gameState = GameState.WAITING;
-    public ArrayList<Packet.ChatPacketData> chatHistory = new ArrayList<Packet.ChatPacketData>();
-    public ArrayList<PlayerLiteConn> players = new ArrayList<PlayerLiteConn>();
-    public long nextStateChange;
+    private Utility.GameState gameState = Utility.GameState.WAITING_FOR_PLAYERS;
+    private long nextStateChange;
+    private ArrayList<Packet.ChatPacketData> chatHistory = new ArrayList<Packet.ChatPacketData>();
+    private ArrayList<PlayerLiteConn> players = new ArrayList<PlayerLiteConn>();
 
     // Manage data in and out
     @Override public void run() {
         System.out.println("Lobby running");
-        nextStateChange = System.currentTimeMillis() + 1000;
+        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
         while (true) {
+
+            // First, manage moving data
             ArrayList<PlayerLiteConn> clients = this.getClients();
             ArrayList<PlayerLiteConn> playersToRemove = new ArrayList<PlayerLiteConn>();
             for (PlayerLiteConn client : clients) {
-                
                 if (client.clientConnection.dataManager == null) {
                     continue;
                 }
-
                 if (client.clientConnection.closeme) {
                     System.out.println("Client killed himself");
                     playersToRemove.add(client);
                     continue;
                 }
-                
-
                 while (client.clientConnection.dataManager.dataQueue.incomingHasNextPacket()) {
                     Packet packet = client.clientConnection.dataManager.dataQueue.incomingNextPacket();
-                    if (packet.type.equals("LOGON")) {
+                    if (packet.type.equals(Packet.LogonPacketData.typeID)) { // Logged in
                         client.status = PlayerLite.PlayerStatus.ACTIVE;
                         client.displayName = packet.logonPacketData.name;
-                        
                         broadcastState();
-                    } else if (packet.type.equals("CHAT")) {
+                    } else if (packet.type.equals(Packet.ChatPacketData.typeID)) { // Sent a chat message
                         client.status = PlayerLite.PlayerStatus.ACTIVE;
-                        
-                        chatHistory.add(packet.chatPacketData);
-                        if (chatHistory.size() > 20) {
-                            chatHistory.remove(chatHistory.size() - 1);
-                        }
+                        addChat(packet.chatPacketData);
                         broadcast(packet);
                         broadcastState();
-                    } else if (packet.type.equals("STATUS")) {
-                        client.status = packet.statusPacketData.status;
-                        
+                    } else if (packet.type.equals(Packet.StatusPacketData.typeID)) { // Sent a status update
+                        client.status = packet.statusPacketData.status;    
+                        broadcastState();
+                    } else if (packet.type.equals(Packet.VotePacketData.typeID)) { // Submitted a vote
+                        client.vote = packet.votePacketData;
                         broadcastState();
                     }
                 }
             }
-
             for (int i = 0; i < playersToRemove.size(); i++) {
                 System.out.println("Removing " + playersToRemove.get(i).displayName);
                 removeClient(playersToRemove.get(i).clientConnection);
             }
 
+            // Next, keep the game moving
+            switch (gameState) {
+                case GAME_END: { 
+                    break;
+                } case MAKING_PAINTINGS: {
+                    break;
+                } case MAKING_PROMPTS: {
+                    break;
+                } case VOTING_PAINTINGS: {
+                    break;
+                } case VOTING_PROMPTS: {
+                    
+                    break;
+                } case WAITING: {
+                    if (System.currentTimeMillis() > nextStateChange) {
+                        
+                        // Start the next phase
+                        gameState = Utility.GameState.MAKING_PROMPTS;
+                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+
+                        // Start an election
+
+                        broadcastState();
+                    }
+                    break;
+                } case WAITING_FOR_PLAYERS: { // Waiting for 3 players to join up
+                    if (players.size() >= 3) {
+                        gameState = Utility.GameState.WAITING;
+                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+                        broadcastState();
+                    }
+                    break;
+                }
+            }
+
+        }
+    }
+
+    private void addChat(ChatPacketData chatPacketData) {
+        chatHistory.add(chatPacketData);
+        if (chatHistory.size() > 20) {
+            chatHistory.remove(chatHistory.size() - 1);
         }
     }
 
@@ -90,7 +119,7 @@ public class Lobby implements Runnable {
     }
 
     private void broadcastState() {
-        broadcast(Packet.gameStatePacket(players, chatHistory, gameState));
+        broadcast(Packet.gameStatePacket(players, chatHistory, gameState, nextStateChange));
     }
 
     public synchronized void addClient(ClientHandler clientHandler) {

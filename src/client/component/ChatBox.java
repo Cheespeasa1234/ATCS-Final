@@ -6,7 +6,10 @@ import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JScrollBar;
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 
 public class ChatBox extends JPanel {
@@ -27,8 +30,7 @@ public class ChatBox extends JPanel {
         // Set up the inputs
         JPanel inputBoxContainer = new JPanel();
         inputBox = new JTextField() {
-            @Override
-            public java.awt.Dimension getPreferredSize() {
+            @Override public java.awt.Dimension getPreferredSize() {
                 return new java.awt.Dimension(200, super.getPreferredSize().height);
             }
         };
@@ -37,7 +39,9 @@ public class ChatBox extends JPanel {
         inputBoxContainer.add(sendChatButton);
 
         this.add(inputBoxContainer, BorderLayout.SOUTH);
-        this.add(chatMessageContainer, BorderLayout.NORTH);
+        
+        JScrollPane scrollPane = new JScrollPane(chatMessageContainer, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        this.add(scrollPane, BorderLayout.NORTH);
     }
 
     public void addToChatbox(String str) {

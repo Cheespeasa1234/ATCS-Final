@@ -2,15 +2,8 @@ package server;
 
 import java.io.*;
 import java.net.*;
-import java.security.*;
-import java.util.LinkedList;
-import java.util.Queue;
 
 import conn.DataManager;
-import conn.Security;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 
 /**
  * The ClientHandler is the thread that manages communication with a single client.

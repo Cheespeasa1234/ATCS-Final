@@ -2,17 +2,10 @@ package server;
 
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.List;
+
+import conn.Utility;
 
 public class Server {
-
-    public static class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
-        @Override public void uncaughtException(Thread t, Throwable e) {
-            System.err.println("Unhandled exception in thread: " + t.getName());
-            e.printStackTrace(System.err);
-        }
-    }
 
     public static void main(String[] args) {
 
@@ -20,11 +13,14 @@ public class Server {
         int port = 58008;
 
         // Handle exceptions
-        Thread.setDefaultUncaughtExceptionHandler(new GlobalExceptionHandler());
+        Thread.setDefaultUncaughtExceptionHandler(new Utility.GlobalExceptionHandler());
 
         // Start the lobby
         Lobby lobby = new Lobby();
-        new Thread(lobby, "Lobby").start();
+        Thread lobbyThread = new Thread(lobby);
+        lobbyThread.setUncaughtExceptionHandler(new Utility.GlobalExceptionHandler());
+        lobbyThread.setName("Lobby");
+        lobbyThread.start();
 
         // Create a new server socket
         try (ServerSocket serverSocket = new ServerSocket(port)) {
@@ -36,7 +32,11 @@ public class Server {
 
                 // Create a new ClientHandler for the connected client
                 ClientHandler clientHandler = new ClientHandler(clientSocket);
-                new Thread(clientHandler, "ClientHandler-" + clientSocket.getInetAddress().getHostAddress()).start();
+                Thread clientThread = new Thread(clientHandler);
+                clientThread.setUncaughtExceptionHandler(new Utility.GlobalExceptionHandler());
+                clientThread.setName("ClientHandler-" + clientSocket.getInetAddress().getHostAddress());
+                clientThread.start();
+                
                 lobby.addClient(clientHandler);
             }
         } catch (IOException e) {

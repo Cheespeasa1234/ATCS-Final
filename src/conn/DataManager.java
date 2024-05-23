@@ -7,7 +7,6 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 
 public class DataManager {
@@ -57,7 +56,7 @@ public class DataManager {
         dataQueue = new DataQueue();
 
         // Input thread
-        new Thread(() -> {
+        Thread inputThread = new Thread(() -> {
             while (running) {
                 String response;
                 try {
@@ -78,9 +77,12 @@ public class DataManager {
                     return;
                 }
             }
-        }, "DataManager-Input-" + threadNameFormat).start();
+        });
+        inputThread.setUncaughtExceptionHandler(new Utility.GlobalExceptionHandler());
+        inputThread.setName("DataManager-Input-" + threadNameFormat);
+        inputThread.start();
 
-        new Thread(() -> {
+        Thread outputThread = new Thread(() -> {
             while (running) {
                 while (dataQueue.outgoingHasNextPacket()) {
                     Packet packet = dataQueue.outgoingNextPacket();
@@ -90,6 +92,9 @@ public class DataManager {
                     out.println(json);
                 }
             }
-        }, "DataManager-Output-" + threadNameFormat).start();
+        });
+        outputThread.setUncaughtExceptionHandler(new Utility.GlobalExceptionHandler());
+        outputThread.setName("DataManager-Output-" + threadNameFormat);
+        outputThread.start();
     }
 }

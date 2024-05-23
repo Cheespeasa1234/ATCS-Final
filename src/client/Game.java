@@ -3,40 +3,29 @@ package client;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.util.ArrayList;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-
 import client.component.ChatBox;
+import client.component.GameplayPanel;
 import client.component.PlayerList;
-import conn.DataManager;
 import conn.Packet;
 import conn.PlayerLite;
+import conn.Utility;
 
 public class Game extends JPanel {
 
     public static final int PREF_W = 800;
-    public static final int PREF_H = 600;
+    public static final int PREF_H = 500;
 
     private SimpleClient client;
     private ChatBox chatbox;
@@ -47,6 +36,8 @@ public class Game extends JPanel {
     private JPanel gameplayPanel;
 
     private PlayerLite[] players;
+    private Utility.GameState gameState;
+    private long nextGameStateChange;
 
     public void connect(String hostname, int port, String username) {
         // When the client starts, add a termination event to the datamanager
@@ -59,21 +50,22 @@ public class Game extends JPanel {
             });
         });
 
-        new Thread(() -> {
-
+        Thread inputThread = new Thread(() -> {
             System.out.println("game input loop started");
             while (true) {
                 while (client.dataManager != null && client.dataManager.dataQueue.incomingHasNextPacket()) {
                     Packet packet = client.dataManager.dataQueue.incomingNextPacket();
 
-                    if (packet.type.equals("CHAT")) {
+                    if (packet.type.equals(Packet.ChatPacketData.typeID)) {
                         System.out.println("CHAT packet recieved.");
                         System.out.println("Chat packet recieved. Adding to screen now.");
                         String message = packet.chatPacketData.message;
                         String sender = packet.chatPacketData.sender;
                         chatbox.addToChatbox(sender + ": " + message);
-                    } else if (packet.type.equals("GAMESTATE")) {
+                    } else if (packet.type.equals(Packet.GameStatePacketData.typeID)) {
                         players = packet.gameStatePacketData.players;
+                        gameState = packet.gameStatePacketData.gameState;
+                        nextGameStateChange = packet.gameStatePacketData.nextStateChange;
                         playerList.updatePlayers(players);
                     }
                 }
@@ -83,10 +75,15 @@ public class Game extends JPanel {
                     e.printStackTrace();
                 }
             }
+        });
+        inputThread.setUncaughtExceptionHandler(new Utility.GlobalExceptionHandler());
+        inputThread.setName("Input");
+        inputThread.start();
 
-        }).start();
-
-        new Thread(client).start();
+        Thread clientThread = new Thread(client);
+        clientThread.setUncaughtExceptionHandler(new Utility.GlobalExceptionHandler());
+        clientThread.setName("Client");
+        clientThread.start();
 
     }
 
@@ -105,17 +102,21 @@ public class Game extends JPanel {
     }
 
     private void makeGameplayPanel() {
-        gameplayPanel = new JPanel();
+        gameplayPanel = new JPanel(new BorderLayout());
+        JPanel infoPanel = new JPanel(new BorderLayout());
+
+        playerList = new PlayerList();
+        playerList.setPreferredSize(new Dimension(400, PREF_H - 300));
+        playerList.updatePlayers(players);
+
         chatbox = new ChatBox();
         chatbox.inputBox.addFocusListener(new FocusListener() {
-            @Override
-            public void focusGained(FocusEvent e) {
+            @Override public void focusGained(FocusEvent e) {
                 System.out.println("Focus gained");
                 client.dataManager.dataQueue.outgoingAddPacket(Packet.statusPacket(PlayerLite.PlayerStatus.TYPING));
             }
-            
-            @Override
-            public void focusLost(FocusEvent e) {
+
+            @Override public void focusLost(FocusEvent e) {
                 System.out.println("Focus lost");
                 client.dataManager.dataQueue.outgoingAddPacket(Packet.statusPacket(PlayerLite.PlayerStatus.ACTIVE));
             }
@@ -129,12 +130,14 @@ public class Game extends JPanel {
 
         chatbox.setPreferredSize(new Dimension(400, 300));
 
-        playerList = new PlayerList();
-        playerList.setPreferredSize(new Dimension(400, PREF_H - 300));
-        playerList.updatePlayers(players);
+        infoPanel.add(chatbox, BorderLayout.SOUTH);
+        infoPanel.add(playerList, BorderLayout.NORTH);
 
-        gameplayPanel.add(chatbox);
-        gameplayPanel.add(playerList);
+        // gameplayPanel.add(infoPanel, BorderLayout.WEST);
+
+        // GameplayPanel gameplay = new GameplayPanel();
+        // gameplay.setPreferredSize(new Dimension(400, PREF_H));
+        // this.add(gameplay, BorderLayout.EAST);
 
     }
 
@@ -167,11 +170,18 @@ public class Game extends JPanel {
         mainMenuPanel.add(connectButton, BorderLayout.SOUTH);
     }
 
-    public void paintComponent(Graphics g) {
-
+    @Override public void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
 
+        g2.drawRect(0, 0, PREF_W, PREF_H);
+        drawTimer(g2);
+    }
+
+    public void drawTimer(Graphics2D g2) {
+        double progress = (nextGameStateChange - System.currentTimeMillis()) / (double) Utility.STATE_INTERVAL;
+
+        g2.fillArc(100, 100, 100, 100, 0, (int) (progress * 360));
     }
 
     /* METHODS FOR CREATING JFRAME AND JPANEL */
