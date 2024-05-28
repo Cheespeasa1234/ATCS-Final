@@ -1,13 +1,14 @@
 package server;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import conn.Packet;
 import conn.PlayerLite;
 import conn.PlayerLiteConn;
 import conn.Utility;
-import conn.Packet.ChatPacketData;
 import conn.Utility.Election;
+import conn.Packet.ChatPacketData;
 
 /**
  * The Lobby is the thread that manages the state of the server, and interacts
@@ -20,6 +21,7 @@ public class Lobby implements Runnable {
     private long nextStateChange;
     private ArrayList<Packet.ChatPacketData> chatHistory = new ArrayList<Packet.ChatPacketData>();
     private ArrayList<PlayerLiteConn> players = new ArrayList<PlayerLiteConn>();
+    private Election currentElection;
 
     // Manage data in and out
     @Override public void run() {
@@ -56,6 +58,12 @@ public class Lobby implements Runnable {
                     } else if (packet.type.equals(Packet.VotePacketData.typeID)) { // Submitted a vote
                         client.vote = packet.votePacketData;
                         broadcastState();
+                    } else if (packet.type.equals(Packet.SubmitPromptPacketData.typeID)) { // Submitted a prompt
+                        client.prompt = packet.submitPromptPacketData;
+                        broadcastState();
+                    } else if (packet.type.equals(Packet.SubmitPaintingPacketData.typeID)) { // Submitted a painting
+                        client.painting = packet.submitPaintingPacketData;
+                        broadcastState();
                     }
                 }
             }
@@ -68,31 +76,50 @@ public class Lobby implements Runnable {
             switch (gameState) {
                 case GAME_END: { 
                     break;
-                } case MAKING_PAINTINGS: {
-                    break;
                 } case MAKING_PROMPTS: {
                     break;
                 } case VOTING_PAINTINGS: {
                     break;
-                } case VOTING_PROMPTS: {
-                    
+                } case MAKING_PAINTINGS: {
                     break;
-                } case WAITING: {
+                } case VOTING_PROMPTS: { // People made their prompts, now we vote on which is best
                     if (System.currentTimeMillis() > nextStateChange) {
+                        getWinner(currentElection);
+                        gameState = Utility.GameState.MAKING_PAINTINGS;
+                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+                        broadcastState();
+                    }
+                    break;
+                } case WAITING: { // Creating prompts phase
+                    if (players.size() < 3) { // If the player count is too small again, go back to waiting for players
+                        gameState = Utility.GameState.WAITING_FOR_PLAYERS;
+                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+                        broadcastState();
+                    } else if (System.currentTimeMillis() > nextStateChange) { // If the waiting time is up, start the next phase
                         
                         // Start the next phase
                         gameState = Utility.GameState.MAKING_PROMPTS;
                         nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
 
                         // Start an election
+                        List<String> candidates = new ArrayList<String>();
+                        for (PlayerLiteConn player : players) {
+                            if (player.prompt != null) {
+                                candidates.add(player.prompt.prompt);
+                            }
+                        }
 
+                        // Tell everyone to vote now
+                        this.currentElection = new Election(candidates, "Choose the prompt you want to draw!");
+                        broadcast(Packet.startVotePacket(currentElection));
                         broadcastState();
-                    }
+                    } else {} // If every player has submitted a prompt
                     break;
                 } case WAITING_FOR_PLAYERS: { // Waiting for 3 players to join up
                     if (players.size() >= 3) {
                         gameState = Utility.GameState.WAITING;
                         nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+                        
                         broadcastState();
                     }
                     break;
@@ -100,6 +127,24 @@ public class Lobby implements Runnable {
             }
 
         }
+    }
+
+    private void getWinner(Election election) {
+        int[] votes = new int[election.candidates.size()];
+        for (PlayerLiteConn player : players) {
+            if (player.vote != null && player.vote.election == election) {
+                votes[player.vote.choice]++;
+            }
+        }
+        int maxVotes = 0;
+        int maxIndex = 0;
+        for (int i = 0; i < votes.length; i++) {
+            if (votes[i] > maxVotes) {
+                maxVotes = votes[i];
+                maxIndex = i;
+            }
+        }
+        broadcast(Packet.chatPacket(election.candidates.get(maxIndex) + " won the election!", "Server"));
     }
 
     private void addChat(ChatPacketData chatPacketData) {

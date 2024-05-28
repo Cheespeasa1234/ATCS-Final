@@ -11,7 +11,9 @@ public class PlayerLite {
     public String displayName;
 
     public Packet.VotePacketData vote;
-    
+    public Packet.SubmitPromptPacketData prompt;
+    public Packet.SubmitPaintingPacketData painting;
+
     public PlayerLite(String ip) {
         this.ip = ip;
         this.status = PlayerStatus.WAITING;

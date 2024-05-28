@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 
 import conn.Utility.Election;
+import conn.Utility.Painting;
 
 import java.util.List;
 
@@ -55,14 +56,44 @@ public class Packet {
         }
     }
 
+    public static class ElectionPacketData {
+        @SerializedName("election") public Election election;
+        public static transient final String typeID = "CREATEVOTE";
+        public ElectionPacketData(List<String> candidates, String prompt) {
+            this.election = new Election(candidates, prompt);
+        }
+    }
+
     public static class VotePacketData {
         @SerializedName("election") public Election election;
         @SerializedName("choice") public int choice;
+        @SerializedName("voter") public PlayerLite voter;
         public static transient final String typeID = "VOTE";
 
-        public VotePacketData(Election election, int choice) {
+        public VotePacketData(Election election, int choice, PlayerLite voter) {
             this.election = election;
             this.choice = choice;
+            this.voter = voter;
+        }
+    }
+
+    public static class SubmitPromptPacketData {
+        @SerializedName("prompt") public String prompt;
+        @SerializedName("author") public PlayerLite author;
+        public static transient final String typeID = "SUBMITPROMPT";
+
+        public SubmitPromptPacketData(String prompt, PlayerLite author) {
+            this.prompt = prompt;
+        }
+    }
+
+    public static class SubmitPaintingPacketData {
+        @SerializedName("painting") public Painting painting;
+        @SerializedName("author") public PlayerLite author;
+        public static transient final String typeID = "SUBMITPAINTING";
+
+        public SubmitPaintingPacketData(Painting painting, PlayerLite author) {
+            this.painting = painting;
         }
     }
 
@@ -72,7 +103,10 @@ public class Packet {
     @SerializedName("logonPacketData") public LogonPacketData logonPacketData;
     @SerializedName("gameStatePacketData") public GameStatePacketData gameStatePacketData;
     @SerializedName("statusPacketData") public StatusPacketData statusPacketData;
+    @SerializedName("startVotePacketData") public ElectionPacketData startVotePacketData;
     @SerializedName("votePacketData") public VotePacketData votePacketData;
+    @SerializedName("submitPromptPacketData") public SubmitPromptPacketData submitPromptPacketData;
+    @SerializedName("submitPaintingPacketData") public SubmitPaintingPacketData submitPaintingPacketData;
 
     public static Packet playerDataPacket(int clientID, PlayerLite playerLite) {
         Packet packet = new Packet();
@@ -112,10 +146,31 @@ public class Packet {
         return packet;
     }
 
-    public static Packet votePacket(Election election, int choice) {
+    public static Packet startVotePacket(Election election) {
+        Packet packet = new Packet();
+        packet.type = ElectionPacketData.typeID;
+        packet.startVotePacketData = new ElectionPacketData(election.candidates, election.question);
+        return packet;
+    }
+
+    public static Packet votePacket(Election election, int choice, PlayerLite voter) {
         Packet packet = new Packet();
         packet.type = VotePacketData.typeID;
-        packet.votePacketData = new VotePacketData(election, choice);
+        packet.votePacketData = new VotePacketData(election, choice, voter);
+        return packet;
+    }
+
+    public static Packet submitPromptPacket(String prompt, PlayerLite author) {
+        Packet packet = new Packet();
+        packet.type = SubmitPromptPacketData.typeID;
+        packet.submitPromptPacketData = new SubmitPromptPacketData(prompt, author);
+        return packet;
+    }
+
+    public static Packet submitPaintingPacket(Painting painting, PlayerLite author) {
+        Packet packet = new Packet();
+        packet.type = SubmitPaintingPacketData.typeID;
+        packet.submitPaintingPacketData = new SubmitPaintingPacketData(painting, author);
         return packet;
     }
 

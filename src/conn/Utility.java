@@ -1,6 +1,6 @@
 package conn;
 
-import com.google.gson.annotations.SerializedName;
+import java.util.List;
 
 public class Utility {
     public static class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
@@ -9,19 +9,22 @@ public class Utility {
             e.printStackTrace(System.err);
         }   
     }
-
-    public static class Election {
-        @SerializedName("candidates") public String[] candidates;
-        @SerializedName("prompt") public String prompt;
-        public static transient final String typeID = "CREATEVOTE";
-        public Election(String[] candidates, String prompt) {
-            this.candidates = candidates;
-            this.prompt = prompt;
-        }
-    }
     
     public static enum GameState {
         WAITING_FOR_PLAYERS, WAITING, MAKING_PROMPTS, VOTING_PROMPTS, MAKING_PAINTINGS, VOTING_PAINTINGS, GAME_END
+    }
+
+    public static class Election {
+        public List<String> candidates;
+        public String question;
+        public Election(List<String> candidates, String question) {
+            this.candidates = candidates;
+            this.question = question;
+        }
+    }
+
+    public static class Painting {
+
     }
 
     public static final int STATE_INTERVAL = 90 * 1000; // 90 seconds
