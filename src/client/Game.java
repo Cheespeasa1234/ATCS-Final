@@ -8,12 +8,14 @@ import java.awt.Graphics2D;
 
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import client.component.ChatBox;
 import client.component.GameplayPanel;
@@ -21,6 +23,7 @@ import client.component.PlayerList;
 import conn.Packet;
 import conn.PlayerLite;
 import conn.Utility;
+import conn.Packet.SubmitPromptPacketData;
 
 public class Game extends JPanel {
 
@@ -67,6 +70,11 @@ public class Game extends JPanel {
                         gameState = packet.gameStatePacketData.gameState;
                         nextGameStateChange = packet.gameStatePacketData.nextStateChange;
                         playerList.updatePlayers(players);
+                    } else if (packet.type.equals(Packet.ElectionPacketData.typeID)) {
+                        // Get the current topic
+                        String question = packet.startVotePacketData.election.question;
+                        List<SubmitPromptPacketData> candidates = packet.startVotePacketData.election.candidates;
+                        System.out.println(packet.toString());
                     }
                 }
                 try {
@@ -99,7 +107,13 @@ public class Game extends JPanel {
 
         this.add(mainMenuPanel);
         this.add(gameplayPanel);
+
+        repaintTimer.start();
     }
+
+    private Timer repaintTimer = new Timer(1000 / 60, e -> {
+        repaint();
+    });
 
     private void makeGameplayPanel() {
         gameplayPanel = new JPanel(new BorderLayout());
@@ -133,7 +147,7 @@ public class Game extends JPanel {
         infoPanel.add(chatbox, BorderLayout.SOUTH);
         infoPanel.add(playerList, BorderLayout.NORTH);
 
-        // gameplayPanel.add(infoPanel, BorderLayout.WEST);
+        this.add(infoPanel, BorderLayout.WEST);
 
         // GameplayPanel gameplay = new GameplayPanel();
         // gameplay.setPreferredSize(new Dimension(400, PREF_H));
@@ -175,12 +189,13 @@ public class Game extends JPanel {
         Graphics2D g2 = (Graphics2D) g;
 
         g2.drawRect(0, 0, PREF_W, PREF_H);
+        g2.drawString("Game State: " + gameState, 10, 10);
         drawTimer(g2);
     }
 
     public void drawTimer(Graphics2D g2) {
-        double progress = (nextGameStateChange - System.currentTimeMillis()) / (double) Utility.STATE_INTERVAL;
-
+        double progress = (double) (nextGameStateChange - System.currentTimeMillis()) / Utility.STATE_INTERVAL;
+        System.out.println("Progress: " + progress);
         g2.fillArc(100, 100, 100, 100, 0, (int) (progress * 360));
     }
 

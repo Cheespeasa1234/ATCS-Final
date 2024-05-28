@@ -9,6 +9,7 @@ import conn.PlayerLiteConn;
 import conn.Utility;
 import conn.Utility.Election;
 import conn.Packet.ChatPacketData;
+import conn.Packet.SubmitPromptPacketData;
 
 /**
  * The Lobby is the thread that manages the state of the server, and interacts
@@ -84,14 +85,16 @@ public class Lobby implements Runnable {
                     break;
                 } case VOTING_PROMPTS: { // People made their prompts, now we vote on which is best
                     if (System.currentTimeMillis() > nextStateChange) {
-                        getWinner(currentElection);
+
+                        SubmitPromptPacketData winner = (SubmitPromptPacketData) currentElection.getWinner(); // Get the prompt people want to draw
                         gameState = Utility.GameState.MAKING_PAINTINGS;
                         nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
                         broadcastState();
+                    
                     }
                     break;
                 } case WAITING: { // Creating prompts phase
-                    if (players.size() < 3) { // If the player count is too small again, go back to waiting for players
+                    if (players.size() < 1) { // If the player count is too small again, go back to waiting for players
                         gameState = Utility.GameState.WAITING_FOR_PLAYERS;
                         nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
                         broadcastState();
@@ -102,49 +105,31 @@ public class Lobby implements Runnable {
                         nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
 
                         // Start an election
-                        List<String> candidates = new ArrayList<String>();
+                        List<SubmitPromptPacketData> candidates = new ArrayList<SubmitPromptPacketData>();
                         for (PlayerLiteConn player : players) {
                             if (player.prompt != null) {
-                                candidates.add(player.prompt.prompt);
+                                candidates.add(player.prompt);
                             }
                         }
 
                         // Tell everyone to vote now
-                        this.currentElection = new Election(candidates, "Choose the prompt you want to draw!");
+                        this.currentElection = new Election<SubmitPromptPacketData>(candidates, "Choose the prompt you want to draw!");
                         broadcast(Packet.startVotePacket(currentElection));
                         broadcastState();
                     } else {} // If every player has submitted a prompt
                     break;
                 } case WAITING_FOR_PLAYERS: { // Waiting for 3 players to join up
-                    if (players.size() >= 3) {
-                        gameState = Utility.GameState.WAITING;
-                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
-                        
+                    if (players.size() >= 1) {
+                        gameState = Utility.GameState.WAITING;                        
                         broadcastState();
+                    } else {
+                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
                     }
                     break;
                 }
             }
 
         }
-    }
-
-    private void getWinner(Election election) {
-        int[] votes = new int[election.candidates.size()];
-        for (PlayerLiteConn player : players) {
-            if (player.vote != null && player.vote.election == election) {
-                votes[player.vote.choice]++;
-            }
-        }
-        int maxVotes = 0;
-        int maxIndex = 0;
-        for (int i = 0; i < votes.length; i++) {
-            if (votes[i] > maxVotes) {
-                maxVotes = votes[i];
-                maxIndex = i;
-            }
-        }
-        broadcast(Packet.chatPacket(election.candidates.get(maxIndex) + " won the election!", "Server"));
     }
 
     private void addChat(ChatPacketData chatPacketData) {
