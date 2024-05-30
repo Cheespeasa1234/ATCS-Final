@@ -18,4 +18,10 @@ public class PlayerLite {
         this.ip = ip;
         this.status = PlayerStatus.WAITING;
     }
+
+    public void resetGame() {
+        this.vote = null;
+        this.prompt = null;
+        this.painting = null;
+    }
 }

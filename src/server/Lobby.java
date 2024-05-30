@@ -9,6 +9,7 @@ import conn.PlayerLiteConn;
 import conn.Utility;
 import conn.Utility.Election;
 import conn.Packet.ChatPacketData;
+import conn.Packet.SubmitPaintingPacketData;
 import conn.Packet.SubmitPromptPacketData;
 
 /**
@@ -18,16 +19,27 @@ import conn.Packet.SubmitPromptPacketData;
  * responses to the clients.
  */
 public class Lobby implements Runnable {
-    private Utility.GameState gameState = Utility.GameState.WAITING_FOR_PLAYERS;
-    private long nextStateChange;
-    private ArrayList<Packet.ChatPacketData> chatHistory = new ArrayList<Packet.ChatPacketData>();
-    private ArrayList<PlayerLiteConn> players = new ArrayList<PlayerLiteConn>();
-    private Election currentElection;
+    public Utility.GameState gameState = Utility.GameState.WAITING_FOR_PLAYERS;
+    public long nextStateChange;
+    public int stateChangeDelay = 0;
+    public ArrayList<Packet.ChatPacketData> chatHistory = new ArrayList<Packet.ChatPacketData>();
+    public ArrayList<PlayerLiteConn> players = new ArrayList<PlayerLiteConn>();
+    public Election currentElection;
+
+    private void resetGame() {
+        gameState = Utility.GameState.WAITING_FOR_PLAYERS;
+        nextStateChange = System.currentTimeMillis() + Utility.SECONDS_30;
+        currentElection = null;
+
+        for (PlayerLiteConn player : players) {
+            player.resetGame();
+        }
+    }
 
     // Manage data in and out
     @Override public void run() {
         System.out.println("Lobby running");
-        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+        nextStateChange = System.currentTimeMillis() + Utility.SECONDS_30;
         while (true) {
 
             // First, manage moving data
@@ -47,6 +59,7 @@ public class Lobby implements Runnable {
                     if (packet.type.equals(Packet.LogonPacketData.typeID)) { // Logged in
                         client.status = PlayerLite.PlayerStatus.ACTIVE;
                         client.displayName = packet.logonPacketData.name;
+                        broadcastInfoMessage(client.displayName + " has joined the game.");
                         broadcastState();
                     } else if (packet.type.equals(Packet.ChatPacketData.typeID)) { // Sent a chat message
                         client.status = PlayerLite.PlayerStatus.ACTIVE;
@@ -82,27 +95,60 @@ public class Lobby implements Runnable {
                 } case VOTING_PAINTINGS: {
                     break;
                 } case MAKING_PAINTINGS: {
+                    // People need to submit their paintings
+                    if (System.currentTimeMillis() > nextStateChange) {
+
+                        // Make sure at least half of the people have submitted paintings
+                        int numPaintings = 0;
+                        for (PlayerLiteConn player : players) {
+                            if (player.painting != null) {
+                                numPaintings++;
+                            }
+                        }
+                        if (numPaintings < players.size() / 2) {
+                            delayState(Utility.SECONDS_30);
+                            break;
+                        }
+
+                        gameState = Utility.GameState.VOTING_PAINTINGS;
+                        delayState(Utility.SECONDS_60);
+
+                        // Start an election
+                        List<SubmitPaintingPacketData> candidates = new ArrayList<SubmitPaintingPacketData>();
+                        for (PlayerLiteConn player : players) {
+                            if (player.painting != null) {
+                                candidates.add(player.painting);
+                            }
+                        }
+
+                        // Tell everyone to vote now
+                        this.currentElection = new Election<SubmitPaintingPacketData>(candidates, "Choose the painting you like the most!");
+                        broadcast(Packet.startVotePacket(currentElection));
+                        broadcastState();
+                    }
                     break;
                 } case VOTING_PROMPTS: { // People made their prompts, now we vote on which is best
                     if (System.currentTimeMillis() > nextStateChange) {
 
                         SubmitPromptPacketData winner = (SubmitPromptPacketData) currentElection.getWinner(); // Get the prompt people want to draw
+                        System.out.println("Winner is: " + winner.prompt);
                         gameState = Utility.GameState.MAKING_PAINTINGS;
-                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+                        delayState(Utility.SECONDS_60);
                         broadcastState();
                     
                     }
                     break;
                 } case WAITING: { // Creating prompts phase
-                    if (players.size() < 1) { // If the player count is too small again, go back to waiting for players
+                    if (players.size() < Utility.PLAYERS_NEEDED) { // If the player count is too small again, go back to waiting for players
                         gameState = Utility.GameState.WAITING_FOR_PLAYERS;
-                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+                        delayState(Utility.SECONDS_30);
+                        broadcastInfoMessage("Waiting for " + (3 - players.size()) + " more players to join.");
                         broadcastState();
                     } else if (System.currentTimeMillis() > nextStateChange) { // If the waiting time is up, start the next phase
                         
                         // Start the next phase
                         gameState = Utility.GameState.MAKING_PROMPTS;
-                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+                        delayState(Utility.SECONDS_60);
 
                         // Start an election
                         List<SubmitPromptPacketData> candidates = new ArrayList<SubmitPromptPacketData>();
@@ -119,17 +165,23 @@ public class Lobby implements Runnable {
                     } else {} // If every player has submitted a prompt
                     break;
                 } case WAITING_FOR_PLAYERS: { // Waiting for 3 players to join up
-                    if (players.size() >= 1) {
+                    if (players.size() >= Utility.PLAYERS_NEEDED) {
                         gameState = Utility.GameState.WAITING;                        
+                        broadcastInfoMessage("Game is starting.");
                         broadcastState();
                     } else {
-                        nextStateChange = System.currentTimeMillis() + Utility.STATE_INTERVAL;
+                        delayState(Utility.SECONDS_30);
                     }
                     break;
                 }
             }
 
         }
+    }
+
+    private void delayState(int ms) {
+        nextStateChange = System.currentTimeMillis() + ms;
+        stateChangeDelay = ms;
     }
 
     private void addChat(ChatPacketData chatPacketData) {
@@ -140,7 +192,6 @@ public class Lobby implements Runnable {
     }
 
     private void broadcast(Packet packet) {
-        System.out.println("Broadcasting packet: " + packet.toString());
         for (PlayerLiteConn player : players) {
             if (player.clientConnection.dataManager != null) {
                 player.clientConnection.dataManager.dataQueue.outgoingAddPacket(packet);
@@ -149,7 +200,11 @@ public class Lobby implements Runnable {
     }
 
     private void broadcastState() {
-        broadcast(Packet.gameStatePacket(players, chatHistory, gameState, nextStateChange));
+        broadcast(Packet.gameStatePacket(this));
+    }
+
+    private void broadcastInfoMessage(String message) {
+        broadcast(Packet.serverMessagePacket(message));
     }
 
     public synchronized void addClient(ClientHandler clientHandler) {
@@ -166,6 +221,7 @@ public class Lobby implements Runnable {
             if (this.players.get(i).clientConnection == clientHandler) {
                 this.players.remove(i);
                 clientHandler.closeConnection();
+                broadcastInfoMessage(clientHandler.displayName + " has left the game.");
                 broadcastState();
                 return;
             }
@@ -174,6 +230,7 @@ public class Lobby implements Runnable {
     }
 
     public synchronized ArrayList<PlayerLiteConn> getClients() {
-        return this.players;
+        // return a shallow copy of the clients
+        return new ArrayList<PlayerLiteConn>(this.players);
     }
 }

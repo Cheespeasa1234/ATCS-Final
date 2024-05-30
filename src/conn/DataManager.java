@@ -61,10 +61,10 @@ public class DataManager {
                 String response;
                 try {
                     while ((response = in.readLine()) != null) {
-                        System.out.println("Recieved: '" + response + "'");
                         if (!response.equals("null")) {
                             Packet p = Packet.fromJson(response);
                             dataQueue.incomingAddPacket(p);
+                            System.out.println("Received: " + p.toFancyString());
                         }
                     }
                     System.out.println("Connection terminated.");
@@ -88,8 +88,8 @@ public class DataManager {
                     Packet packet = dataQueue.outgoingNextPacket();
                     System.out.println(packet);
                     String json = packet.toString();
-                    System.out.println("Sending: '" + json + "'");
                     out.println(json);
+                    System.out.println("Sent: " + packet.toFancyString());
                 }
             }
         });

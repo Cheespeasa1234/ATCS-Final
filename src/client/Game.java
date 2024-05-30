@@ -18,7 +18,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
 import client.component.ChatBox;
-import client.component.GameplayPanel;
 import client.component.PlayerList;
 import conn.Packet;
 import conn.PlayerLite;
@@ -35,18 +34,20 @@ public class Game extends JPanel {
     private PlayerList playerList;
     private JTextField usernameField, ipField, portField;
 
-    private JPanel mainMenuPanel;
-    private JPanel gameplayPanel;
+    private JPanel logonMenuPanel;
+    private JPanel gamePanel;
+    private JPanel gameplayPaintingPanel;
 
     private PlayerLite[] players;
     private Utility.GameState gameState;
     private long nextGameStateChange;
+    private int stateChangeDelay;
 
     public void connect(String hostname, int port, String username) {
         // When the client starts, add a termination event to the datamanager
         client = new SimpleClient(hostname, port, username, () -> {
-            mainMenuPanel.setVisible(false);
-            gameplayPanel.setVisible(true);
+            logonMenuPanel.setVisible(false);
+            gamePanel.setVisible(true);
             client.dataManager.addInputTerminationEvent(() -> {
                 System.out.println("Connection terminated.");
                 System.exit(0);
@@ -69,12 +70,20 @@ public class Game extends JPanel {
                         players = packet.gameStatePacketData.players;
                         gameState = packet.gameStatePacketData.gameState;
                         nextGameStateChange = packet.gameStatePacketData.nextStateChange;
+                        stateChangeDelay = packet.gameStatePacketData.stateChangeDelay;
                         playerList.updatePlayers(players);
                     } else if (packet.type.equals(Packet.ElectionPacketData.typeID)) {
                         // Get the current topic
                         String question = packet.startVotePacketData.election.question;
                         List<SubmitPromptPacketData> candidates = packet.startVotePacketData.election.candidates;
                         System.out.println(packet.toString());
+                    } else if (packet.type.equals(Packet.ServerMessagePacketData.typeID)) {
+                        System.out.println("Server message packet recieved.");
+                        System.out.println("Server message packet recieved. Adding to screen now.");
+                        String message = packet.serverMessagePacketData.message;
+                        chatbox.addToChatbox("Server: " + message);
+                    } else {
+                        System.out.println("Unknown packet type: " + packet.type);
                     }
                 }
                 try {
@@ -92,35 +101,41 @@ public class Game extends JPanel {
         clientThread.setUncaughtExceptionHandler(new Utility.GlobalExceptionHandler());
         clientThread.setName("Client");
         clientThread.start();
-
     }
 
     public Game() {
         this.setFocusable(true);
         this.setBackground(Color.WHITE);
 
-        makeMainMenuPanel();
-        makeGameplayPanel();
+        makeLogonScreenPanel();
+        makeGamePanel();
 
-        mainMenuPanel.setVisible(true);
-        gameplayPanel.setVisible(false);
+        logonMenuPanel.setVisible(true);
+        gamePanel.setVisible(false);
 
-        this.add(mainMenuPanel);
-        this.add(gameplayPanel);
+        this.add(logonMenuPanel);
+        this.add(gamePanel);
 
         repaintTimer.start();
     }
 
     private Timer repaintTimer = new Timer(1000 / 60, e -> {
         repaint();
+        gameplayPaintingPanel.repaint();
     });
 
-    private void makeGameplayPanel() {
-        gameplayPanel = new JPanel(new BorderLayout());
+    private void makeGamePanel() {
+
+        int infoPanelWidth = 400;
+
+        gamePanel = new JPanel(new BorderLayout());
+        gamePanel.setPreferredSize(new Dimension(PREF_W, PREF_H));
+        
         JPanel infoPanel = new JPanel(new BorderLayout());
+        infoPanel.setPreferredSize(new Dimension(infoPanelWidth, PREF_H));
 
         playerList = new PlayerList();
-        playerList.setPreferredSize(new Dimension(400, PREF_H - 300));
+        playerList.setPreferredSize(new Dimension(infoPanelWidth, PREF_H - 300));
         playerList.updatePlayers(players);
 
         chatbox = new ChatBox();
@@ -135,28 +150,43 @@ public class Game extends JPanel {
                 client.dataManager.dataQueue.outgoingAddPacket(Packet.statusPacket(PlayerLite.PlayerStatus.ACTIVE));
             }
         });
+
         chatbox.sendChatButton.addActionListener(e -> {
             String message = chatbox.inputBox.getText();
+            chatbox.inputBox.setText("");
             Packet packet = Packet.chatPacket(message, usernameField.getText());
             client.dataManager.dataQueue.outgoingAddPacket(packet);
             System.out.println("added chat packet to queue");
         });
+        
+        gameplayPaintingPanel = new JPanel() {
+            @Override public void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g;
+                g2.drawString("Game State: " + gameState, 10, 10);
+                drawTimer(g2);
+            }
+            
+            public void drawTimer(Graphics2D g2) {
+                double progress = (double) (nextGameStateChange - System.currentTimeMillis()) / stateChangeDelay;
+                System.out.println("Progress: " + progress);
+                g2.fillArc(100, 100, 100, 100, 0, (int) (progress * 360));
+            }
+        };
 
-        chatbox.setPreferredSize(new Dimension(400, 300));
+        gameplayPaintingPanel.setPreferredSize(new Dimension(PREF_W - infoPanelWidth, PREF_H));
 
+        chatbox.setPreferredSize(new Dimension(infoPanelWidth, 300));
+        infoPanel.setPreferredSize(new Dimension(infoPanelWidth, PREF_H));
         infoPanel.add(chatbox, BorderLayout.SOUTH);
         infoPanel.add(playerList, BorderLayout.NORTH);
 
-        this.add(infoPanel, BorderLayout.WEST);
-
-        // GameplayPanel gameplay = new GameplayPanel();
-        // gameplay.setPreferredSize(new Dimension(400, PREF_H));
-        // this.add(gameplay, BorderLayout.EAST);
-
+        gamePanel.add(infoPanel, BorderLayout.EAST);
+        gamePanel.add(gameplayPaintingPanel, BorderLayout.WEST);
     }
 
-    private void makeMainMenuPanel() {
-        mainMenuPanel = new JPanel(new BorderLayout());
+    private void makeLogonScreenPanel() {
+        logonMenuPanel = new JPanel(new BorderLayout());
         usernameField = new JTextField();
         usernameField.setText("Username");
 
@@ -179,24 +209,9 @@ public class Game extends JPanel {
         connectPanel.add(ipField);
         connectPanel.add(portField);
 
-        mainMenuPanel.add(usernameField, BorderLayout.NORTH);
-        mainMenuPanel.add(connectPanel, BorderLayout.CENTER);
-        mainMenuPanel.add(connectButton, BorderLayout.SOUTH);
-    }
-
-    @Override public void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        Graphics2D g2 = (Graphics2D) g;
-
-        g2.drawRect(0, 0, PREF_W, PREF_H);
-        g2.drawString("Game State: " + gameState, 10, 10);
-        drawTimer(g2);
-    }
-
-    public void drawTimer(Graphics2D g2) {
-        double progress = (double) (nextGameStateChange - System.currentTimeMillis()) / Utility.STATE_INTERVAL;
-        System.out.println("Progress: " + progress);
-        g2.fillArc(100, 100, 100, 100, 0, (int) (progress * 360));
+        logonMenuPanel.add(usernameField, BorderLayout.NORTH);
+        logonMenuPanel.add(connectPanel, BorderLayout.CENTER);
+        logonMenuPanel.add(connectButton, BorderLayout.SOUTH);
     }
 
     /* METHODS FOR CREATING JFRAME AND JPANEL */

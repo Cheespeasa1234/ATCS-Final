@@ -1,11 +1,13 @@
 package conn;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 
 import conn.Utility.Election;
 import conn.Utility.Painting;
+import server.Lobby;
 
 import java.util.List;
 
@@ -19,6 +21,15 @@ public class Packet {
         public ChatPacketData(String message, String sender) {
             this.message = message;
             this.sender = sender;
+        }
+    }
+
+    public static class ServerMessagePacketData {
+        @SerializedName("message") public String message;
+        public static transient final String typeID = "SERVERMESSAGE";
+
+        public ServerMessagePacketData(String message) {
+            this.message = message;
         }
     }
 
@@ -36,10 +47,11 @@ public class Packet {
         @SerializedName("chatHistory") public ChatPacketData[] chatHistory;
         @SerializedName("gameState") public Utility.GameState gameState;
         @SerializedName("nextStateChange") public long nextStateChange;
+        @SerializedName("stateChangeDelay") public int stateChangeDelay;
         public static transient final String typeID = "GAMESTATE";
 
         public GameStatePacketData(PlayerLite[] players, ChatPacketData[] chatHistory, Utility.GameState gameState,
-                long nextStateChange) {
+                long nextStateChange, int stateChangeDelay) {
             this.players = players;
             this.chatHistory = chatHistory;
             this.gameState = gameState;
@@ -100,6 +112,7 @@ public class Packet {
     @SerializedName("type") public String type;
     @SerializedName("playerData") public PlayerLite playerData;
     @SerializedName("chatPacketData") public ChatPacketData chatPacketData;
+    @SerializedName("serverMessagePacketData") public ServerMessagePacketData serverMessagePacketData;
     @SerializedName("logonPacketData") public LogonPacketData logonPacketData;
     @SerializedName("gameStatePacketData") public GameStatePacketData gameStatePacketData;
     @SerializedName("statusPacketData") public StatusPacketData statusPacketData;
@@ -122,6 +135,13 @@ public class Packet {
         return packet;
     }
 
+    public static Packet serverMessagePacket(String message) {
+        Packet packet = new Packet();
+        packet.type = ServerMessagePacketData.typeID;
+        packet.serverMessagePacketData = new ServerMessagePacketData(message);
+        return packet;
+    }
+
     public static Packet logonPacket(String name) {
         Packet packet = new Packet();
         packet.type = LogonPacketData.typeID;
@@ -129,13 +149,12 @@ public class Packet {
         return packet;
     }
 
-    public static Packet gameStatePacket(List<PlayerLiteConn> players, List<ChatPacketData> chatHistory,
-            Utility.GameState gameState, long nextStateChange) {
+    public static Packet gameStatePacket(Lobby lobby) {
         Packet packet = new Packet();
         packet.type = GameStatePacketData.typeID;
-        PlayerLite[] playerArray = players.toArray(new PlayerLite[players.size()]);
-        ChatPacketData[] chatArray = chatHistory.toArray(new ChatPacketData[chatHistory.size()]);
-        packet.gameStatePacketData = new GameStatePacketData(playerArray, chatArray, gameState, nextStateChange);
+        PlayerLite[] playerArray = lobby.players.toArray(new PlayerLite[lobby.players.size()]);
+        ChatPacketData[] chatArray = lobby.chatHistory.toArray(new ChatPacketData[lobby.chatHistory.size()]);
+        packet.gameStatePacketData = new GameStatePacketData(playerArray, chatArray, lobby.gameState, lobby.nextStateChange, lobby.stateChangeDelay);
         return packet;
     }
 
@@ -172,6 +191,11 @@ public class Packet {
         packet.type = SubmitPaintingPacketData.typeID;
         packet.submitPaintingPacketData = new SubmitPaintingPacketData(painting, author);
         return packet;
+    }
+
+    public String toFancyString() {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        return gson.toJson(this);
     }
 
     @Override public String toString() {

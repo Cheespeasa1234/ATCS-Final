@@ -51,6 +51,9 @@ public class Utility {
 
     }
 
-    public static final int STATE_INTERVAL = 10 * 1000; // 90 seconds
+    public static final int SECONDS_30 = 30 * 1000; // 90 seconds
+    public static final int SECONDS_45 = 45 * 1000; // 90 seconds
+    public static final int SECONDS_60 = 60 * 1000; // 90 seconds
+    public static final int PLAYERS_NEEDED = 3;
 
 }
