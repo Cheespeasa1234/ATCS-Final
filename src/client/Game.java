@@ -32,13 +32,15 @@ public class Game extends JPanel {
     private SimpleClient client;
     private ChatBox chatbox;
     private PlayerList playerList;
-    private JTextField usernameField, ipField, portField;
+    private JTextField usernameField, ipField, portField, promptField;
+    private JButton submitContentButton;
 
     private JPanel logonMenuPanel;
     private JPanel gamePanel;
     private JPanel gameplayPaintingPanel;
 
     private PlayerLite[] players;
+    private PlayerLite currentPlayer;
     private Utility.GameState gameState;
     private long nextGameStateChange;
     private int stateChangeDelay;
@@ -82,6 +84,9 @@ public class Game extends JPanel {
                         System.out.println("Server message packet recieved. Adding to screen now.");
                         String message = packet.serverMessagePacketData.message;
                         chatbox.addToChatbox("Server: " + message);
+                    } else if (packet.type.equals(Packet.PlayerPacketData.typeID)) {
+                        PlayerLite player = packet.playerData.player;
+                        currentPlayer = player;
                     } else {
                         System.out.println("Unknown packet type: " + packet.type);
                     }
@@ -124,20 +129,44 @@ public class Game extends JPanel {
         gameplayPaintingPanel.repaint();
     });
 
+    // Initialization of gamePanel and infoPanel
     private void makeGamePanel() {
-
         int infoPanelWidth = 400;
 
         gamePanel = new JPanel(new BorderLayout());
         gamePanel.setPreferredSize(new Dimension(PREF_W, PREF_H));
-        
+
         JPanel infoPanel = new JPanel(new BorderLayout());
         infoPanel.setPreferredSize(new Dimension(infoPanelWidth, PREF_H));
 
+        // Initialization of playerList
+        initPlayerList(infoPanelWidth);
+
+        // Initialization of chatbox
+        initChatbox();
+
+        // Initialization of gameplayPaintingPanel
+        initGameplayPaintingPanel(infoPanelWidth);
+
+        // Add chatbox and playerList to infoPanel
+        chatbox.setPreferredSize(new Dimension(infoPanelWidth, 300));
+        infoPanel.add(chatbox, BorderLayout.SOUTH);
+        infoPanel.add(playerList, BorderLayout.NORTH);
+
+        // Add infoPanel and gameplayPaintingPanel to gamePanel
+        gamePanel.add(infoPanel, BorderLayout.EAST);
+        gamePanel.add(gameplayPaintingPanel, BorderLayout.WEST);
+    }
+
+    // Initialization of playerList
+    private void initPlayerList(int infoPanelWidth) {
         playerList = new PlayerList();
         playerList.setPreferredSize(new Dimension(infoPanelWidth, PREF_H - 300));
         playerList.updatePlayers(players);
+    }
 
+    // Initialization of chatbox
+    private void initChatbox() {
         chatbox = new ChatBox();
         chatbox.inputBox.addFocusListener(new FocusListener() {
             @Override public void focusGained(FocusEvent e) {
@@ -158,7 +187,10 @@ public class Game extends JPanel {
             client.dataManager.dataQueue.outgoingAddPacket(packet);
             System.out.println("added chat packet to queue");
         });
-        
+    }
+
+    // Initialization of gameplayPaintingPanel
+    private void initGameplayPaintingPanel(int infoPanelWidth) {
         gameplayPaintingPanel = new JPanel() {
             @Override public void paintComponent(Graphics g) {
                 super.paintComponent(g);
@@ -166,7 +198,7 @@ public class Game extends JPanel {
                 g2.drawString("Game State: " + gameState, 10, 10);
                 drawTimer(g2);
             }
-            
+
             public void drawTimer(Graphics2D g2) {
                 double progress = (double) (nextGameStateChange - System.currentTimeMillis()) / stateChangeDelay;
                 System.out.println("Progress: " + progress);
@@ -174,15 +206,18 @@ public class Game extends JPanel {
             }
         };
 
+        JTextField promptField = new JTextField();
+        promptField.setText("Prompt");
+        gameplayPaintingPanel.add(promptField);
+
+        JButton submitContentButton = new JButton("Submit");
+        submitContentButton.addActionListener(e -> {
+            String prompt = promptField.getText();
+            client.dataManager.dataQueue.outgoingAddPacket(Packet.submitPromptPacket(prompt, currentPlayer));
+        });
+        gameplayPaintingPanel.add(submitContentButton);
+
         gameplayPaintingPanel.setPreferredSize(new Dimension(PREF_W - infoPanelWidth, PREF_H));
-
-        chatbox.setPreferredSize(new Dimension(infoPanelWidth, 300));
-        infoPanel.setPreferredSize(new Dimension(infoPanelWidth, PREF_H));
-        infoPanel.add(chatbox, BorderLayout.SOUTH);
-        infoPanel.add(playerList, BorderLayout.NORTH);
-
-        gamePanel.add(infoPanel, BorderLayout.EAST);
-        gamePanel.add(gameplayPaintingPanel, BorderLayout.WEST);
     }
 
     private void makeLogonScreenPanel() {

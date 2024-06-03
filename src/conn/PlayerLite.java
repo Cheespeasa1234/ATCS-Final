@@ -24,4 +24,11 @@ public class PlayerLite {
         this.prompt = null;
         this.painting = null;
     }
+
+    @Override public boolean equals(Object obj) {
+        if (obj instanceof PlayerLite) {
+            return ((PlayerLite) obj).ip.equals(this.ip);
+        }
+        return false;
+    }
 }

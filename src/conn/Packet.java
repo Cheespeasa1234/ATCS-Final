@@ -24,6 +24,15 @@ public class Packet {
         }
     }
 
+    public static class PlayerPacketData {
+        @SerializedName("player") public PlayerLite player;
+        public static transient final String typeID = "PLAYERDATA";
+
+        public PlayerPacketData(PlayerLite player) {
+            this.player = player;
+        }
+    }
+
     public static class ServerMessagePacketData {
         @SerializedName("message") public String message;
         public static transient final String typeID = "SERVERMESSAGE";
@@ -110,8 +119,8 @@ public class Packet {
     }
 
     @SerializedName("type") public String type;
-    @SerializedName("playerData") public PlayerLite playerData;
     @SerializedName("chatPacketData") public ChatPacketData chatPacketData;
+    @SerializedName("playerPacketData") public PlayerPacketData playerData;
     @SerializedName("serverMessagePacketData") public ServerMessagePacketData serverMessagePacketData;
     @SerializedName("logonPacketData") public LogonPacketData logonPacketData;
     @SerializedName("gameStatePacketData") public GameStatePacketData gameStatePacketData;
@@ -121,10 +130,10 @@ public class Packet {
     @SerializedName("submitPromptPacketData") public SubmitPromptPacketData submitPromptPacketData;
     @SerializedName("submitPaintingPacketData") public SubmitPaintingPacketData submitPaintingPacketData;
 
-    public static Packet playerDataPacket(int clientID, PlayerLite playerLite) {
+    public static Packet playerDataPacket(PlayerLite playerLite) {
         Packet packet = new Packet();
-
-        packet.playerData = playerLite;
+        packet.type = PlayerPacketData.typeID;
+        packet.playerData = new PlayerPacketData(playerLite);
         return packet;
     }
 

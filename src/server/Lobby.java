@@ -31,7 +31,7 @@ public class Lobby implements Runnable {
         nextStateChange = System.currentTimeMillis() + Utility.SECONDS_30;
         currentElection = null;
 
-        for (PlayerLiteConn player : players) {
+        for (PlayerLiteConn player : this.getClients()) {
             player.resetGame();
         }
     }
@@ -67,7 +67,7 @@ public class Lobby implements Runnable {
                         broadcast(packet);
                         broadcastState();
                     } else if (packet.type.equals(Packet.StatusPacketData.typeID)) { // Sent a status update
-                        client.status = packet.statusPacketData.status;    
+                        client.status = packet.statusPacketData.status;
                         broadcastState();
                     } else if (packet.type.equals(Packet.VotePacketData.typeID)) { // Submitted a vote
                         client.vote = packet.votePacketData;
@@ -146,6 +146,21 @@ public class Lobby implements Runnable {
                         broadcastState();
                     } else if (System.currentTimeMillis() > nextStateChange) { // If the waiting time is up, start the next phase
                         
+                        // Make sure at least half of the people have submitted prompts
+                        int numPrompts = 0;
+                        for (PlayerLiteConn player : players) {
+                            if (player.prompt != null) {
+                                numPrompts++;
+                            }
+                        }
+                        
+                        System.out.println("Num prompts: " + numPrompts);
+                        if (numPrompts < players.size() / 2) {
+                            delayState(Utility.SECONDS_30);
+                            broadcastInfoMessage("Waiting for " + (players.size() - numPrompts) + " more players to submit their prompts.");
+                            break;
+                        }
+
                         // Start the next phase
                         gameState = Utility.GameState.MAKING_PROMPTS;
                         delayState(Utility.SECONDS_60);
@@ -200,7 +215,13 @@ public class Lobby implements Runnable {
     }
 
     private void broadcastState() {
+        // Broadcast Gamestate
         broadcast(Packet.gameStatePacket(this));
+
+        // Give each player their own status
+        for (PlayerLiteConn player : players) {
+            player.clientConnection.dataManager.dataQueue.outgoingAddPacket(Packet.playerDataPacket(player));
+        }
     }
 
     private void broadcastInfoMessage(String message) {
