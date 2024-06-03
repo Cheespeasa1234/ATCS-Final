@@ -3,6 +3,8 @@ package client;
 import java.io.*;
 import java.net.*;
 
+import javax.swing.JOptionPane;
+
 import conn.DataManager;
 import conn.Packet;
 
@@ -48,8 +50,12 @@ public class SimpleClient implements Runnable {
             // Keep the thread alive
             onStart.run();
             while (true) {}
+        } catch (ConnectException e) {
+            JOptionPane.showMessageDialog(null, e.toString(), "Connection refused", JOptionPane.ERROR_MESSAGE);
+        } catch (UnknownHostException e) {
+            JOptionPane.showMessageDialog(null, e.toString(), "Unknown host", JOptionPane.ERROR_MESSAGE);
         } catch (IOException e) {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, e.toString(), "I/O error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

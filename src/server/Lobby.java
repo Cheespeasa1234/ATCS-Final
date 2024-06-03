@@ -63,9 +63,29 @@ public class Lobby implements Runnable {
                         broadcastState();
                     } else if (packet.type.equals(Packet.ChatPacketData.typeID)) { // Sent a chat message
                         client.status = PlayerLite.PlayerStatus.ACTIVE;
-                        addChat(packet.chatPacketData);
-                        broadcast(packet);
-                        broadcastState();
+
+                        String msg = packet.chatPacketData.message;
+                        System.out.println("Chat: " + msg);
+                        if (msg.isEmpty() || msg.isBlank()) {
+                            continue;
+                        } else if (msg.startsWith("//")) {
+                            if (msg.equalsIgnoreCase("//players")) {
+                                broadcastInfoMessage("Players in the game:");
+                                for (PlayerLiteConn player : players) {
+                                    broadcastInfoMessage(Packet.playerDataPacket(player).toString());
+                                }
+                                broadcastState();
+                            } else if (msg.equalsIgnoreCase("//reset")) {
+                                broadcastInfoMessage("Resetting game.");
+                                resetGame();
+                                broadcastState();
+                            }
+                        } else {
+                            addChat(packet.chatPacketData);
+                            broadcast(packet);
+                            broadcastState();
+                        }
+
                     } else if (packet.type.equals(Packet.StatusPacketData.typeID)) { // Sent a status update
                         client.status = packet.statusPacketData.status;
                         broadcastState();

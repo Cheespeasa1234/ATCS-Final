@@ -24,7 +24,6 @@ public class ChatBox extends JPanel {
         // Set up the chats
         chatMessageModel = new DefaultListModel<>();
         chatMessageContainer = new JList<String>(chatMessageModel);
-        chatMessageContainer.setFixedCellWidth(this.getPreferredSize().width);
 
         // Set up the inputs
         JPanel inputBoxContainer = new JPanel();
@@ -39,7 +38,7 @@ public class ChatBox extends JPanel {
 
         this.add(inputBoxContainer, BorderLayout.SOUTH);
         
-        JScrollPane scrollPane = new JScrollPane(chatMessageContainer, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        JScrollPane scrollPane = new JScrollPane(chatMessageContainer, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         this.add(scrollPane, BorderLayout.NORTH);
     }
 
