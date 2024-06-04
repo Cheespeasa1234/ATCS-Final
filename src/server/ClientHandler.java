@@ -54,7 +54,7 @@ public class ClientHandler implements Runnable {
 
     @Override public void run() {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-            dataManager = new DataManager(in, out, clientSocket.getInetAddress().getHostAddress());
+            dataManager = new DataManager(in, out, clientSocket.getInetAddress().getHostAddress() + "-" + this.clientID);
             dataManager.addInputTerminationEvent(() -> {
                 this.closeConnection();
                 running = false; // Set the flag to false when termination event occurs

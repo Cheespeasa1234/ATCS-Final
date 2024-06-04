@@ -39,6 +39,18 @@ public class Lobby implements Runnable {
     // Manage data in and out
     @Override public void run() {
         System.out.println("Lobby running");
+
+        Thread pingThread = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(1000);
+                    broadcast(Packet.);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
         nextStateChange = System.currentTimeMillis() + Utility.SECONDS_30;
         while (true) {
 
@@ -65,7 +77,6 @@ public class Lobby implements Runnable {
                         client.status = PlayerLite.PlayerStatus.ACTIVE;
 
                         String msg = packet.chatPacketData.message;
-                        System.out.println("Chat: " + msg);
                         if (msg.isEmpty() || msg.isBlank()) {
                             continue;
                         } else if (msg.startsWith("//")) {
@@ -240,7 +251,9 @@ public class Lobby implements Runnable {
 
         // Give each player their own status
         for (PlayerLiteConn player : players) {
-            player.clientConnection.dataManager.dataQueue.outgoingAddPacket(Packet.playerDataPacket(player));
+            if (player.clientConnection.dataManager != null) {
+                player.clientConnection.dataManager.dataQueue.outgoingAddPacket(Packet.playerDataPacket(player));
+            }
         }
     }
 

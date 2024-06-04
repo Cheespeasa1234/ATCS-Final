@@ -64,7 +64,7 @@ public class DataManager {
                         if (!response.equals("null")) {
                             Packet p = Packet.fromJson(response);
                             dataQueue.incomingAddPacket(p);
-                            System.out.println("Received: " + p.toFancyString());
+                            System.out.println("Received: " + p.toString());
                         }
                     }
                     System.out.println("Connection terminated.");
@@ -74,7 +74,7 @@ public class DataManager {
                 } catch (JsonSyntaxException | IOException e) {
                     e.printStackTrace();
                     running = false;
-                    return;
+                    throw new RuntimeException("Connection terminated: " + e.getMessage());
                 }
             }
         });
@@ -86,10 +86,9 @@ public class DataManager {
             while (running) {
                 while (dataQueue.outgoingHasNextPacket()) {
                     Packet packet = dataQueue.outgoingNextPacket();
-                    System.out.println(packet);
                     String json = packet.toString();
                     out.println(json);
-                    System.out.println("Sent: " + packet.toFancyString());
+                    System.out.println("Sent: " + packet.toString());
                 }
             }
         });

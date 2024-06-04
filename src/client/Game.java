@@ -12,6 +12,7 @@ import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -63,8 +64,6 @@ public class Game extends JPanel {
                     Packet packet = client.dataManager.dataQueue.incomingNextPacket();
 
                     if (packet.type.equals(Packet.ChatPacketData.typeID)) {
-                        System.out.println("CHAT packet recieved.");
-                        System.out.println("Chat packet recieved. Adding to screen now.");
                         String message = packet.chatPacketData.message;
                         String sender = packet.chatPacketData.sender;
                         chatbox.addToChatbox(sender + ": " + message);
@@ -78,7 +77,6 @@ public class Game extends JPanel {
                         // Get the current topic
                         String question = packet.startVotePacketData.election.question;
                         List<SubmitPromptPacketData> candidates = packet.startVotePacketData.election.candidates;
-                        System.out.println(packet.toString());
                     } else if (packet.type.equals(Packet.ServerMessagePacketData.typeID)) {
                         System.out.println("Server message packet recieved.");
                         System.out.println("Server message packet recieved. Adding to screen now.");
@@ -93,8 +91,8 @@ public class Game extends JPanel {
                 }
                 try {
                     Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(null, Utility.getStackTraceString(e), e.toString(), JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
@@ -201,7 +199,6 @@ public class Game extends JPanel {
 
             public void drawTimer(Graphics2D g2) {
                 double progress = (double) (nextGameStateChange - System.currentTimeMillis()) / stateChangeDelay;
-                System.out.println("Progress: " + progress);
                 g2.fillArc(100, 100, 100, 100, 0, (int) (progress * 360));
             }
         };

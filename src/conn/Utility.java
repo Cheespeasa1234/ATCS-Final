@@ -1,14 +1,26 @@
 package conn;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class Utility {
+
+    public static String getStackTraceString(Exception e) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        e.printStackTrace(pw);
+        String sStackTrace = sw.toString();
+        return sStackTrace;
+    }
+
     public static class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
         @Override public void uncaughtException(Thread t, Throwable e) {
-            System.err.println("Unhandled exception in thread: " + t.getName());
+            System.err.println("\\u001B[31mUnhandled exception in thread: " + t.getName());
             e.printStackTrace(System.err);
+            System.err.println("\\u001B[0m");
         }
     }
 

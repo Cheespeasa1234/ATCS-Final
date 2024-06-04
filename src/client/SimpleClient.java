@@ -4,9 +4,11 @@ import java.io.*;
 import java.net.*;
 
 import javax.swing.JOptionPane;
+import javax.swing.text.Utilities;
 
 import conn.DataManager;
 import conn.Packet;
+import conn.Utility;
 
 /**
  * The manager of the connection to the server, client-side.
@@ -32,7 +34,7 @@ public class SimpleClient implements Runnable {
             
             // Get a connection to the server
             Socket socket = new Socket(address, port);
-            BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
+            socket.setSoTimeout(3000); // Set 3 second timeout
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
@@ -47,15 +49,12 @@ public class SimpleClient implements Runnable {
             System.out.println("Sending logon packet: " + packet.toJson().toString());
             dataManager.dataQueue.outgoingAddPacket(packet);
 
-            // Keep the thread alive
             onStart.run();
+            
+            // Keep the thread alive
             while (true) {}
-        } catch (ConnectException e) {
-            JOptionPane.showMessageDialog(null, e.toString(), "Connection refused", JOptionPane.ERROR_MESSAGE);
-        } catch (UnknownHostException e) {
-            JOptionPane.showMessageDialog(null, e.toString(), "Unknown host", JOptionPane.ERROR_MESSAGE);
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, e.toString(), "I/O error", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, Utility.getStackTraceString(e), e.toString(), JOptionPane.ERROR_MESSAGE);
         }
     }
 }
