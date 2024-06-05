@@ -78,13 +78,21 @@ public class Game extends JPanel {
                         String question = packet.startVotePacketData.election.question;
                         List<SubmitPromptPacketData> candidates = packet.startVotePacketData.election.candidates;
                     } else if (packet.type.equals(Packet.ServerMessagePacketData.typeID)) {
-                        System.out.println("Server message packet recieved.");
-                        System.out.println("Server message packet recieved. Adding to screen now.");
                         String message = packet.serverMessagePacketData.message;
                         chatbox.addToChatbox("Server: " + message);
                     } else if (packet.type.equals(Packet.PlayerPacketData.typeID)) {
+                        // Get the player
                         PlayerLite player = packet.playerData.player;
                         currentPlayer = player;
+                    } else if (packet.type.equals(Packet.PingPacketData.typeID)) {
+                        // Calculate ping
+                        long now = System.currentTimeMillis();
+                        long dif = now - packet.pingPacketData.sendTime;
+                        
+                        // Respond
+                        System.out.println("Ping: " + dif + "ms");
+                        packet.pingPacketData.responseTime = now;
+                        client.dataManager.dataQueue.outgoingAddPacket(packet);
                     } else {
                         System.out.println("Unknown packet type: " + packet.type);
                     }

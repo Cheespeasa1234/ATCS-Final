@@ -9,10 +9,10 @@ import conn.Utility.Election;
 import conn.Utility.Painting;
 import server.Lobby;
 
+import java.io.Serial;
 import java.util.List;
 
 public class Packet {
-
     public static class ChatPacketData {
         @SerializedName("content") public String message;
         @SerializedName("sender") public String sender;
@@ -80,6 +80,7 @@ public class Packet {
     public static class ElectionPacketData {
         @SerializedName("election") public Election election;
         public static transient final String typeID = "CREATEVOTE";
+
         public ElectionPacketData(List<String> candidates, String prompt) {
             this.election = new Election(candidates, prompt);
         }
@@ -118,6 +119,17 @@ public class Packet {
         }
     }
 
+    public static class PingPacketData {
+        @SerializedName("sendTime") public long sendTime;
+        @SerializedName("responseTime") public long responseTime;
+        public static transient final String typeID = "PING";
+
+        public PingPacketData(long sendTime, long responseTime) {
+            this.sendTime = sendTime;
+            this.responseTime = responseTime;
+        }
+    }
+
     @SerializedName("type") public String type;
     @SerializedName("chatPacketData") public ChatPacketData chatPacketData;
     @SerializedName("playerPacketData") public PlayerPacketData playerData;
@@ -129,6 +141,7 @@ public class Packet {
     @SerializedName("votePacketData") public VotePacketData votePacketData;
     @SerializedName("submitPromptPacketData") public SubmitPromptPacketData submitPromptPacketData;
     @SerializedName("submitPaintingPacketData") public SubmitPaintingPacketData submitPaintingPacketData;
+    @SerializedName("pingPacketData") public PingPacketData pingPacketData;
 
     public static Packet playerDataPacket(PlayerLite playerLite) {
         Packet packet = new Packet();
@@ -163,7 +176,8 @@ public class Packet {
         packet.type = GameStatePacketData.typeID;
         PlayerLite[] playerArray = lobby.players.toArray(new PlayerLite[lobby.players.size()]);
         ChatPacketData[] chatArray = lobby.chatHistory.toArray(new ChatPacketData[lobby.chatHistory.size()]);
-        packet.gameStatePacketData = new GameStatePacketData(playerArray, chatArray, lobby.gameState, lobby.nextStateChange, lobby.stateChangeDelay);
+        packet.gameStatePacketData = new GameStatePacketData(playerArray, chatArray, lobby.gameState,
+                lobby.nextStateChange, lobby.stateChangeDelay);
         return packet;
     }
 
@@ -202,12 +216,20 @@ public class Packet {
         return packet;
     }
 
+    public static Packet pingPacket(long sendTime, long responseTime) {
+        Packet packet = new Packet();
+        packet.type = PingPacketData.typeID;
+        packet.pingPacketData = new PingPacketData(sendTime, responseTime);
+        return packet;
+    }
+
     public String toFancyString() {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         return gson.toJson(this);
     }
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
         return this.toJson().toString();
     }
 
