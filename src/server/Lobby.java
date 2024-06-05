@@ -48,7 +48,10 @@ public class Lobby implements Runnable {
                 }
             }
         });
+        pingThread.setName("Lobby-Ping-Thread");
+        pingThread.setUncaughtExceptionHandler(new Utility.GlobalExceptionHandler());
         pingThread.start();
+
         nextStateChange = System.currentTimeMillis() + Utility.SECONDS_30;
         while (true) {
             // First, manage moving data
