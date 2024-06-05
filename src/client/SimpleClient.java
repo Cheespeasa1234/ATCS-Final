@@ -34,7 +34,6 @@ public class SimpleClient implements Runnable {
             
             // Get a connection to the server
             Socket socket = new Socket(address, port);
-            socket.setSoTimeout(3000); // Set 3 second timeout
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
